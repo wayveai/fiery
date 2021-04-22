@@ -1,0 +1,24 @@
+TAG: 'single_timeframe_model'
+
+GPUS: [0, 1, 2, 3]
+
+BATCHSIZE: 8
+
+TIME_RECEPTIVE_FIELD: 1
+N_FUTURE_FRAMES: 0
+
+PROBABILISTIC:
+  ENABLED: False
+
+MODEL:
+  TEMPORAL_MODEL:
+    NAME: 'identity'
+    INPUT_EGOPOSE: False
+
+INSTANCE_FLOW:
+  ENABLED: False
+
+OPTIMIZER:
+  LR: 1e-3
+
+N_WORKERS: 20

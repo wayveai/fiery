@@ -1,0 +1,6 @@
+_BASE_: '../single_timeframe.yml'
+
+TAG: 'lift_splat_setting'
+
+DATASET:
+  FILTER_INVISIBLE_VEHICLES: False

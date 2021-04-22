@@ -1,0 +1,23 @@
+_BASE_: '../baseline.yml'
+
+TAG: 'lyft_baseline_latest'
+
+GPUS: [0, 1, 2, 3]
+
+BATCHSIZE: 3
+TIME_RECEPTIVE_FIELD: 5
+N_FUTURE_FRAMES: 10
+
+DATASET:
+  NAME: 'lyft'
+
+IMAGE:
+  H: 1080
+  W: 1920
+  RESIZE_SCALE: 0.25
+
+PRETRAINED:
+  PATH: ''
+
+MODEL:
+  SUBSAMPLE: True

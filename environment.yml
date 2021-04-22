@@ -1,0 +1,23 @@
+name: fiery
+channels:
+  - defaults
+  - conda-forge
+  - pytorch
+dependencies:
+- python=3.6.9
+- pytorch=1.7.0
+- torchvision
+- cudatoolkit=10.1
+- numpy
+- pillow
+- scipy
+- tqdm
+- pip
+- opencv
+- moviepy
+- pip:
+    - pytorch-lightning==1.2.5
+    - efficientnet-pytorch==0.7.0
+    - fvcore
+    - nuscenes-devkit==1.1.0
+    - lyft-dataset-sdk==0.0.8

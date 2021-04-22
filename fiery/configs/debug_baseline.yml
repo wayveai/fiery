@@ -1,0 +1,13 @@
+_BASE_: 'baseline.yml'
+
+TAG: 'debug'
+
+BATCHSIZE: 1
+EPOCHS: 2
+GPUS: [0]
+LOGGING_INTERVAL: 10
+
+DATASET:
+  VERSION: 'mini'
+
+VIS_INTERVAL: 8
