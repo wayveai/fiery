@@ -40,9 +40,10 @@ If you find our work useful, please consider citing:
 ## 🏄 Prediction
 
 ### Visualisation
+
 - Download [pre-trained weights](https://drive.google.com/uc?export=download&id=10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M).
 - Run `python visualise.py --checkpoint ${CHECKPOINT_PATH}`. This will render predictions from the network and save 
-them to a `output_vis` folder.
+them to an `output_vis` folder.
 
 ### Evaluation
 - Download the [NuScenes dataset](https://www.nuscenes.org/download).
