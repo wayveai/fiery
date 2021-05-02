@@ -77,14 +77,13 @@ def plot_prediction(image, output, cfg):
 
 def visualise(checkpoint_path):
     trainer = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
-    cfg = trainer.cfg
 
     device = torch.device('cuda:0')
     trainer = trainer.to(device)
     trainer.eval()
 
     # Load data
-    for data_path in glob('./example_data/*.npz'):
+    for data_path in sorted(glob('./example_data/*.npz')):
         data = np.load(data_path)
         image = torch.from_numpy(data['image']).to(device)
         intrinsics = torch.from_numpy(data['intrinsics']).to(device)
@@ -95,7 +94,7 @@ def visualise(checkpoint_path):
         with torch.no_grad():
             output = trainer.model(image, intrinsics, extrinsics, future_egomotions)
 
-        figure_numpy = plot_prediction(image, output, cfg)
+        figure_numpy = plot_prediction(image, output, trainer.cfg)
         os.makedirs('./output_vis', exist_ok=True)
         output_filename = os.path.join('./output_vis', os.path.basename(data_path).split('.')[0]) + '.png'
         Image.fromarray(figure_numpy).save(output_filename)
