@@ -13,12 +13,11 @@ from PIL import Image
 from fiery.trainer import TrainingModule
 from fiery.utils.network import NormalizeInverse
 from fiery.utils.instance import predict_instance_segmentation_and_trajectories
-
 from fiery.utils.visualisation import plot_instance_map, generate_instance_colours, make_contour, convert_figure_numpy
 
 
 def visualise(checkpoint_path):
-    trainer = TrainingModule.load_from_checkpoint(checkpoint_path, strict=False)
+    trainer = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
     cfg = trainer.cfg
 
     device = torch.device('cuda:0')
