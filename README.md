@@ -40,7 +40,7 @@ If you find our work useful, please consider citing:
 ## 🏄 Prediction
 - Download the [NuScenes dataset](https://www.nuscenes.org/download).
 - Download [pre-trained weights](https://drive.google.com/file/d/10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M/view?usp=sharing).
-- Run `python evaluate.py --checkpoint-path ${CHECKPOINT_PATH} --dataroot ${NUSCENES_DATAROOT}`.
+- Run `python evaluate.py --checkpoint ${CHECKPOINT_PATH} --dataroot ${NUSCENES_DATAROOT}`.
 
 ## 🔥 Pre-trained models
 
@@ -48,8 +48,8 @@ All the configs are in the folder `fiery/configs`
 
 | Config       | Dataset | Past context | Future horizon | BEV size | IoU  | VPQ|
 |--------------|---------|-----------------------|----------------|----------|------|----|
-| [`baseline.yml`](https://drive.google.com/file/d/10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M/view?usp=sharing) | NuScenes | 1.0s | 2.0s | 100mx100m (50cm res.) | 37.0 | 29.5 |
-| [`lyft/baseline.yml`]() | Lyft | 0.8s | 2.0s | 100mx100m (50cm res.) | 36.6 | 29.5 |
+| [`baseline.yml`](https://drive.google.com/uc?export=download&id=10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M) | NuScenes | 1.0s | 2.0s | 100mx100m (50cm res.) | 37.0 | 29.5 |
+| [`lyft/baseline.yml`]() | Lyft | 0.8s | 2.0s | 100mx100m (50cm res.) | 36.3 | 29.2 |
 | [`literature/pon_setting.yml`]() | NuScenes | 0.0s | 0.0s | 100mx50m (25cm res.) | 39.9 | - |
 | [`literature/lift_splat_setting.yml`]() | NuScenes | 0.0s | 0.0s | 100mx100m (50cm res.) | 36.7 | - |
 | [`literature/fishing_setting.yml`]() | NuScenes | 1.0s | 2.0s | 32.0mx19.2m (10cm res.) | 58.5 | - |

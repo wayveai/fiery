@@ -286,7 +286,7 @@ class Fiery(nn.Module):
         x = unpack_sequence_dim(x, b, s)
         return x
 
-    def distribution_forward(self, present_features, future_distribution_inputs, noise=None):
+    def distribution_forward(self, present_features, future_distribution_inputs=None, noise=None):
         """
         Parameters
         ----------
@@ -307,10 +307,12 @@ class Fiery(nn.Module):
 
         present_mu, present_log_sigma = self.present_distribution(present_features)
 
-        # Concatenate future labels to z_t
-        future_features = future_distribution_inputs[:, 1:].contiguous().view(b, 1, -1, h, w)
-        future_features = torch.cat([present_features, future_features], dim=2)
-        future_mu, future_log_sigma = self.future_distribution(future_features)
+        future_mu, future_log_sigma = None, None
+        if future_distribution_inputs is not None:
+            # Concatenate future labels to z_t
+            future_features = future_distribution_inputs[:, 1:].contiguous().view(b, 1, -1, h, w)
+            future_features = torch.cat([present_features, future_features], dim=2)
+            future_mu, future_log_sigma = self.future_distribution(future_features)
 
         if noise is None:
             if self.training:

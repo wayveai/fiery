@@ -1,11 +1,9 @@
-import os
 from argparse import ArgumentParser
 
 import torch
 from tqdm import tqdm
-from nuscenes.nuscenes import NuScenes
 
-from fiery.data import NuScenesDataset
+from fiery.data import prepare_dataloaders
 from fiery.trainer import TrainingModule
 from fiery.metrics import IntersectionOverUnion, PanopticMetric
 from fiery.utils.network import preprocess_batch
@@ -33,12 +31,7 @@ def eval(checkpoint_path, dataroot, version):
     cfg.DATASET.DATAROOT = dataroot
     cfg.DATASET.VERSION = version
 
-    dataroot = os.path.join(cfg.DATASET.DATAROOT, cfg.DATASET.VERSION)
-    nusc = NuScenes(version='v1.0-{}'.format(cfg.DATASET.VERSION), dataroot=dataroot, verbose=False)
-
-    val_dataset = NuScenesDataset(nusc, False, cfg)
-    valloader = torch.utils.data.DataLoader(val_dataset, batch_size=cfg.BATCHSIZE, shuffle=False, num_workers=5,
-                                            pin_memory=True)
+    _, valloader = prepare_dataloaders(cfg)
 
     panoptic_metrics = {}
     iou_metrics = {}
@@ -75,7 +68,7 @@ def eval(checkpoint_path, dataroot, version):
 
         for key, grid in EVALUATION_RANGES.items():
             limits = slice(grid[0], grid[1])
-            panoptic_metrics[key](pred_consistent_instance_seg[..., limits, limits].contiguous(),
+            panoptic_metrics[key](pred_consistent_instance_seg[..., limits, limits].contiguous().detach(),
                                   labels['instance'][..., limits, limits].contiguous()
                                   )
 
@@ -83,27 +76,27 @@ def eval(checkpoint_path, dataroot, version):
                              labels['segmentation'][..., limits, limits].contiguous()
                              )
 
-    results_json = {}
+    results = {}
     for key, grid in EVALUATION_RANGES.items():
         panoptic_scores = panoptic_metrics[key].compute()
         for panoptic_key, value in panoptic_scores.items():
-            results_json[f'{panoptic_key}'] = results_json.get(f'{panoptic_key}', []) + [100 * value[1].item()]
+            results[f'{panoptic_key}'] = results.get(f'{panoptic_key}', []) + [100 * value[1].item()]
 
         iou_scores = iou_metrics[key].compute()
-        results_json['iou'] = results_json.get('iou', []) + [100 * iou_scores[1].item()]
+        results['iou'] = results.get('iou', []) + [100 * iou_scores[1].item()]
 
     for panoptic_key in ['iou', 'pq', 'sq', 'rq']:
         print(panoptic_key)
-        print(' & '.join([f'{x:.1f}' for x in results_json[panoptic_key]]))
+        print(' & '.join([f'{x:.1f}' for x in results[panoptic_key]]))
 
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Fiery evaluation')
-    parser.add_argument('--checkpoint-path', default='./fiery.ckpt', type=str, help='path to checkpoint')
-    parser.add_argument('--dataroot', default='./nuscenes', type=str, help='path to the NuScenes dataset')
-    parser.add_argument('--version', default='mini', type=str, choices=['mini', 'trainval'],
+    parser.add_argument('--checkpoint', default='./fiery.ckpt', type=str, help='path to checkpoint')
+    parser.add_argument('--dataroot', default='./nuscenes', type=str, help='path to the dataset')
+    parser.add_argument('--version', default='trainval', type=str, choices=['mini', 'trainval'],
                         help='dataset version')
 
     args = parser.parse_args()
 
-    eval(args.checkpoint_path, args.dataroot, args.version)
+    eval(args.checkpoint, args.dataroot, args.version)

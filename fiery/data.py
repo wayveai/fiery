@@ -25,7 +25,7 @@ from fiery.utils.instance import convert_instance_mask_to_center_and_offset_labe
 from fiery.utils.lyft_splits import TRAIN_LYFT_INDICES, VAL_LYFT_INDICES
 
 
-class NuScenesDataset(torch.utils.data.Dataset):
+class FuturePredictionDataset(torch.utils.data.Dataset):
     def __init__(self, nusc, is_train, cfg):
         self.nusc = nusc
         self.is_train = is_train
@@ -442,8 +442,8 @@ def prepare_dataloaders(cfg):
                            json_path=os.path.join(dataroot, 'train_data'),
                            verbose=True)
 
-    traindata = NuScenesDataset(nusc, train_on_training_data, cfg)
-    valdata = NuScenesDataset(nusc, False, cfg)
+    traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
+    valdata = FuturePredictionDataset(nusc, False, cfg)
 
     if version == 'mini':
         traindata.indices = traindata.indices[:10]

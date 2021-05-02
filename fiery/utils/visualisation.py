@@ -187,7 +187,7 @@ def plot_instance_map(instance_image, instance_map, instance_colours=None, bg_im
         instance_image = instance_image.cpu().numpy()
     assert isinstance(instance_image, np.ndarray)
     if instance_colours is None:
-        instance_colours = _generate_instance_colours(instance_map)
+        instance_colours = generate_instance_colours(instance_map)
     if len(instance_image.shape) > 2:
         instance_image = instance_image.reshape((instance_image.shape[-2], instance_image.shape[-1]))
 
@@ -282,7 +282,14 @@ def visualise_output(labels, output, cfg):
     return video
 
 
-def _generate_instance_colours(instance_map):
+def convert_figure_numpy(figure):
+    """ Convert figure to numpy image """
+    figure_np = np.frombuffer(figure.canvas.tostring_rgb(), dtype=np.uint8)
+    figure_np = figure_np.reshape(figure.canvas.get_width_height()[::-1] + (3,))
+    return figure_np
+
+
+def generate_instance_colours(instance_map):
     # Most distinct 22 colors (kelly colors from https://stackoverflow.com/questions/470690/how-to-automatically-generate
     # -n-distinct-colors)
     # plus some colours from AD40k
