@@ -38,12 +38,13 @@ If you find our work useful, please consider citing:
 - Create the [conda](https://docs.conda.io/en/latest/miniconda.html) environment by running `conda env create`.
 
 ## 🏄 Prediction
-#### Visualisation
+
+### Visualisation
 - Download [pre-trained weights](https://drive.google.com/uc?export=download&id=10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M).
 - Run `python visualise.py --checkpoint ${CHECKPOINT_PATH}`. This will render predictions from the network and save 
 them to a `output_vis` folder.
 
-#### Evaluation
+### Evaluation
 - Download the [NuScenes dataset](https://www.nuscenes.org/download).
 - Download [pre-trained weights](https://drive.google.com/uc?export=download&id=10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M).
 - Run `python evaluate.py --checkpoint ${CHECKPOINT_PATH} --dataroot ${NUSCENES_DATAROOT}`.
