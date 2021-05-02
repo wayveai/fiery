@@ -6,18 +6,17 @@ channels:
 dependencies:
 - python=3.6.9
 - pytorch=1.7.0
-- torchvision
+- torchvision=0.8.1
 - cudatoolkit=10.1
-- numpy
-- pillow
-- scipy
-- tqdm
-- pip
-- opencv
-- moviepy
+- numpy=1.19.2
+- scipy=1.5.2
+- pillow=8.0.1
+- opencv=3.4.2
+- tqdm=4.50.2
+- pip=20.2.4
 - pip:
     - pytorch-lightning==1.2.5
     - efficientnet-pytorch==0.7.0
-    - fvcore
+    - fvcore==0.1.2.post20201111
     - nuscenes-devkit==1.1.0
     - lyft-dataset-sdk==0.0.8
