@@ -57,7 +57,9 @@ All the configs are in the folder `fiery/configs`
 
 ## 🏊 Training
 To train the model from scratch on NuScenes:
-- Run `python train.py --config fiery/configs/baseline.yml DATASET.DATAROOT ${NUSCENES_DATAROOT}`
+- Run `python train.py --config fiery/configs/baseline.yml DATASET.DATAROOT ${NUSCENES_DATAROOT}`.
+
+To train on single GPU add the flag `GPUS [0]`, and to change the batch size use the flag `BATCHSIZE ${DESIRED_BATCHSIZE}`.
 
 ## 🙌 Credits
 Big thanks to Piotr Sokólski ([@pyetras](https://github.com/pyetras)) for the panoptic metric implementation, and to 
