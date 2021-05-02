@@ -1,3 +1,4 @@
 tensorboard_logs/
+output_vis/
 .idea/
 *.pyc
