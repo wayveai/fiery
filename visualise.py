@@ -15,6 +15,8 @@ from fiery.utils.network import NormalizeInverse
 from fiery.utils.instance import predict_instance_segmentation_and_trajectories
 from fiery.utils.visualisation import plot_instance_map, generate_instance_colours, make_contour, convert_figure_numpy
 
+EXAMPLE_DATA_PATH = 'example_data'
+
 
 def plot_prediction(image, output, cfg):
     # Process predictions
@@ -75,6 +77,27 @@ def plot_prediction(image, output, cfg):
     return figure_numpy
 
 
+def download_example_data():
+    from requests import get
+
+    def download(url, file_name):
+        # open in binary mode
+        with open(file_name, "wb") as file:
+            # get request
+            response = get(url)
+            # write to file
+            file.write(response.content)
+
+    os.makedirs(EXAMPLE_DATA_PATH, exist_ok=True)
+    url_list = ['https://github.com/wayveai/fiery/releases/download/v1.0/example_1.npz',
+                'https://github.com/wayveai/fiery/releases/download/v1.0/example_2.npz',
+                'https://github.com/wayveai/fiery/releases/download/v1.0/example_3.npz',
+                'https://github.com/wayveai/fiery/releases/download/v1.0/example_4.npz'
+                ]
+    for url in url_list:
+        download(url, os.path.join(EXAMPLE_DATA_PATH, os.path.basename(url)))
+
+
 def visualise(checkpoint_path):
     trainer = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
 
@@ -82,8 +105,10 @@ def visualise(checkpoint_path):
     trainer = trainer.to(device)
     trainer.eval()
 
+    # Download example data
+    download_example_data()
     # Load data
-    for data_path in sorted(glob('./example_data/*.npz')):
+    for data_path in sorted(glob(os.path.join(EXAMPLE_DATA_PATH, '*.npz'))):
         data = np.load(data_path)
         image = torch.from_numpy(data['image']).to(device)
         intrinsics = torch.from_numpy(data['intrinsics']).to(device)
