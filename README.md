@@ -44,13 +44,13 @@ In a colab notebook:
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/12ahc3whI1RQZIVDi53grMWHzdA7WqIuo?usp=sharing)
 
 Or locally:
-- Download [pre-trained weights](https://drive.google.com/uc?export=download&id=10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M).
+- Download [pre-trained weights](https://github.com/wayveai/fiery/releases/download/v1.0/fiery.ckpt).
 - Run `python visualise.py --checkpoint ${CHECKPOINT_PATH}`. This will render predictions from the network and save 
 them to an `output_vis` folder.
 
 ### Evaluation
 - Download the [NuScenes dataset](https://www.nuscenes.org/download).
-- Download [pre-trained weights](https://drive.google.com/uc?export=download&id=10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M).
+- Download [pre-trained weights](https://github.com/wayveai/fiery/releases/download/v1.0/fiery.ckpt).
 - Run `python evaluate.py --checkpoint ${CHECKPOINT_PATH} --dataroot ${NUSCENES_DATAROOT}`.
 
 ## 🔥 Pre-trained models
@@ -59,11 +59,11 @@ All the configs are in the folder `fiery/configs`
 
 | Config       | Dataset | Past context | Future horizon | BEV size | IoU  | VPQ|
 |--------------|---------|-----------------------|----------------|----------|------|----|
-| [`baseline.yml`](https://drive.google.com/uc?export=download&id=10H8iZtsqeZukQHkVJl-sH3nSAdbW3d9M) | NuScenes | 1.0s | 2.0s | 100mx100m (50cm res.) | 36.7 | 29.9 |
-| [`lyft/baseline.yml`](https://drive.google.com/uc?export=download&id=14FIxATLoC0HY9ObrHS-zuAX1ql5L7y6n) | Lyft | 0.8s | 2.0s | 100mx100m (50cm res.) | 36.3 | 29.2 |
-| [`literature/pon_setting.yml`](https://drive.google.com/uc?export=download&id=1fyXdDOKinRLSJ8zB89mf6YEua1SnKyxE) | NuScenes | 0.0s | 0.0s | 100mx50m (25cm res.) | 40.0 | - |
-| [`literature/lift_splat_setting.yml`](https://drive.google.com/uc?export=download&id=1Cvmo2QFqkvcBlIsz1q2H4tYfFzOeRfO1) | NuScenes | 0.0s | 0.0s | 100mx100m (50cm res.) | 37.8 | - |
-| [`literature/fishing_setting.yml`](https://drive.google.com/uc?export=download&id=1NgICZImGUCm7mMNxkhhroxTawdIQt2y3) | NuScenes | 1.0s | 2.0s | 32.0mx19.2m (10cm res.) | 59.4 | - |
+| [`baseline.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/fiery.ckpt) | NuScenes | 1.0s | 2.0s | 100mx100m (50cm res.) | 36.7 | 29.9 |
+| [`lyft/baseline.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/lyft_fiery.ckpt) | Lyft | 0.8s | 2.0s | 100mx100m (50cm res.) | 36.3 | 29.2 |
+| [`literature/pon_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/pon_setting.ckpt) | NuScenes | 0.0s | 0.0s | 100mx50m (25cm res.) | 40.0 | - |
+| [`literature/lift_splat_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/lift_splat_setting.ckpt) | NuScenes | 0.0s | 0.0s | 100mx100m (50cm res.) | 37.8 | - |
+| [`literature/fishing_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/fishing_setting.ckpt) | NuScenes | 1.0s | 2.0s | 32.0mx19.2m (10cm res.) | 59.4 | - |
 
 
 ## 🏊 Training
