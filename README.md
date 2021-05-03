@@ -15,7 +15,7 @@ described in:
 > [Blog post](https://wayve.ai/blog/fiery-future-instance-prediction-birds-eye-view)
 
 <p align="center">
-     <img src="media/predictions.gif" alt="FIERY future prediction">
+     <img src="https://github.com/wayveai/fiery/releases/download/v1.0/predictions.gif" alt="FIERY future prediction">
      <br/>
      <sub><em>Multimodal future predictions by our bird’s-eye view network.<br/>
 Top two rows: RGB camera inputs. The predicted future trajectories and segmentations are projected to the ground plane in the images.<br/>
