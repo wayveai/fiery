@@ -63,7 +63,7 @@ All the configs are in the folder `fiery/configs`
 | [`lyft/baseline.yml`](https://drive.google.com/uc?export=download&id=14FIxATLoC0HY9ObrHS-zuAX1ql5L7y6n) | Lyft | 0.8s | 2.0s | 100mx100m (50cm res.) | 36.3 | 29.2 |
 | [`literature/pon_setting.yml`](https://drive.google.com/uc?export=download&id=1fyXdDOKinRLSJ8zB89mf6YEua1SnKyxE) | NuScenes | 0.0s | 0.0s | 100mx50m (25cm res.) | 40.0 | - |
 | [`literature/lift_splat_setting.yml`](https://drive.google.com/uc?export=download&id=1Cvmo2QFqkvcBlIsz1q2H4tYfFzOeRfO1) | NuScenes | 0.0s | 0.0s | 100mx100m (50cm res.) | 37.8 | - |
-| [`literature/fishing_setting.yml`](https://drive.google.com/uc?export=download&id=1NgICZImGUCm7mMNxkhhroxTawdIQt2y3) | NuScenes | 1.0s | 2.0s | 32.0mx19.2m (10cm res.) | 58.5 | - |
+| [`literature/fishing_setting.yml`](https://drive.google.com/uc?export=download&id=1NgICZImGUCm7mMNxkhhroxTawdIQt2y3) | NuScenes | 1.0s | 2.0s | 32.0mx19.2m (10cm res.) | 59.4 | - |
 
 
 ## 🏊 Training
