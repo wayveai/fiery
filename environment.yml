@@ -4,19 +4,19 @@ channels:
   - conda-forge
   - pytorch
 dependencies:
-- python=3.6.9
+- python=3.7.10
 - pytorch=1.7.0
 - torchvision=0.8.1
 - cudatoolkit=10.1
 - numpy=1.19.2
 - scipy=1.5.2
 - pillow=8.0.1
-- opencv=3.4.2
 - tqdm=4.50.2
-- pip=20.2.4
+- pytorch-lightning=1.2.5
+- efficientnet-pytorch=0.7.0
+- fvcore=0.1.2.post20201122
+- pip=21.0.1
 - pip:
-    - pytorch-lightning==1.2.5
-    - efficientnet-pytorch==0.7.0
-    - fvcore==0.1.2.post20201111
     - nuscenes-devkit==1.1.0
     - lyft-dataset-sdk==0.0.8
+    - opencv-python==4.5.1.48
