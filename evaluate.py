@@ -10,10 +10,11 @@ from fiery.utils.network import preprocess_batch
 from fiery.utils.instance import predict_instance_segmentation_and_trajectories
 
 # 30mx30m, 100mx100m
-EVALUATION_RANGES = {#'30x30': (70, 130),
+EVALUATION_RANGES = {'30x30': (70, 130),
                      '100x100': (0, 200)
                      }
 
+EVALUATE_ORACLE = True
 INCLUDE_TRAJECTORY_METRICS = True
 
 
@@ -33,6 +34,15 @@ def eval(checkpoint_path, dataroot, version):
     cfg.DATASET.DATAROOT = dataroot
     cfg.DATASET.VERSION = version
 
+    if EVALUATE_ORACLE:
+        cfg.TIME_RECEPTIVE_FIELD = 3
+        cfg.N_FUTURE_FRAMES = 4
+        model.receptive_field = cfg.TIME_RECEPTIVE_FIELD
+        model.temporal_model.receptive_field = cfg.TIME_RECEPTIVE_FIELD
+        model.n_future = cfg.N_FUTURE_FRAMES
+
+        cfg.EVAL.EVALUATE_ORACLE = True
+
     _, valloader, _, val_dataset = prepare_dataloaders(cfg)
 
     panoptic_metrics = {}
@@ -46,7 +56,7 @@ def eval(checkpoint_path, dataroot, version):
         #iou_metrics[key] = IntersectionOverUnion(n_classes).to(device)
 
     #for i, batch in enumerate(tqdm(valloader)):
-    for i in tqdm(range(0, len(val_dataset), 1)):
+    for i in tqdm(range(0, len(val_dataset), 10)):
         batch = val_dataset[i]
         preprocess_batch(batch, device, unsqueeze=True)
         image = batch['image']
@@ -66,11 +76,17 @@ def eval(checkpoint_path, dataroot, version):
 
         # Consistent instance seg
         pred_consistent_instance_seg = predict_instance_segmentation_and_trajectories(
-            output, compute_matched_centers=False, make_consistent=True
+            output, compute_matched_centers=False, make_consistent=(not EVALUATE_ORACLE)
         )
 
         segmentation_pred = output['segmentation'].detach()
         segmentation_pred = torch.argmax(segmentation_pred, dim=2, keepdims=True)
+
+        if EVALUATE_ORACLE:
+            b, _, h, w = pred_consistent_instance_seg.shape
+            pred_consistent_instance_seg = pred_consistent_instance_seg.expand(b, model.n_future + 1, h, w)
+            #segmentation_pred = segmentation_pred.expand(b, model.n_future + 1, 1, h, w)
+
 
         for key, grid in EVALUATION_RANGES.items():
             limits = slice(grid[0], grid[1])

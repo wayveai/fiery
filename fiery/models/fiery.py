@@ -157,7 +157,7 @@ class Fiery(nn.Module):
         #  Temporal model
         states = self.temporal_model(x)
 
-        if self.n_future > 0:
+        if self.n_future > 0 and (not self.cfg.EVAL.EVALUATE_ORACLE):
             # Split into present and future features (for the probabilistic model)
             present_state = states[:, :1].contiguous()
             if self.cfg.PROBABILISTIC.ENABLED:
@@ -183,7 +183,7 @@ class Fiery(nn.Module):
             future_states = torch.cat([present_state, future_states], dim=1)
 
         # Predict bird's-eye view outputs
-        if self.n_future > 0:
+        if self.n_future > 0 and (not self.cfg.EVAL.EVALUATE_ORACLE):
             bev_output = self.decoder(future_states)
         else:
             bev_output = self.decoder(states[:, -1:])

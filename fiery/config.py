@@ -122,6 +122,10 @@ _C.OPTIMIZER.LR = 3e-4
 _C.OPTIMIZER.WEIGHT_DECAY = 1e-7
 _C.GRAD_NORM_CLIP = 5
 
+_C.EVAL = CN()
+_C.EVAL.EVALUATE_ORACLE = False
+_C.EVAL.EXTRAPOLATE = False
+
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Fiery training')

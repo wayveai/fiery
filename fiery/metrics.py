@@ -6,6 +6,9 @@ from pytorch_lightning.metrics.functional.classification import stat_scores_mult
 from pytorch_lightning.metrics.functional.reduction import reduce
 
 
+MATCH_THRESHOLD = 0.25
+
+
 class IntersectionOverUnion(Metric):
     """Computes intersection-over-union."""
     def __init__(
@@ -219,7 +222,7 @@ class PanopticMetric(Metric):
 
         # In the iou matrix, first dimension is target idx, second dimension is pred idx.
         # Mapping will contain a tuple that maps prediction idx to target idx for segments matched by iou.
-        mapping = (iou > 0.5).nonzero(as_tuple=False)
+        mapping = (iou > MATCH_THRESHOLD).nonzero(as_tuple=False)
 
         # Check that classes match.
         is_matching = pred_to_cls[mapping[:, 1]] == target_to_cls[mapping[:, 0]]

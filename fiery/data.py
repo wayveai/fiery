@@ -447,7 +447,7 @@ def prepare_dataloaders(cfg):
 
     if version == 'mini':
         traindata.indices = traindata.indices[:10]
-        valdata.indices = valdata.indices[30:36]
+        #valdata.indices = valdata.indices[30:36]
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(
