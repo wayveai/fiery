@@ -456,4 +456,4 @@ def prepare_dataloaders(cfg):
     valloader = torch.utils.data.DataLoader(
         valdata, batch_size=cfg.BATCHSIZE, shuffle=False, num_workers=nworkers, pin_memory=True, drop_last=False)
 
-    return trainloader, valloader
+    return trainloader, valloader, traindata, valdata

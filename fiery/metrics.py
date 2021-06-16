@@ -72,18 +72,29 @@ class PanopticMetric(Metric):
         temporally_consistent: bool = True,
         vehicles_id: int = 1,
         compute_on_step: bool = False,
+        include_trajectory_metrics: bool = False,
+        pixel_resolution: float = 1.0,
     ):
         super().__init__(compute_on_step=compute_on_step)
 
         self.n_classes = n_classes
         self.temporally_consistent = temporally_consistent
         self.vehicles_id = vehicles_id
+        self.include_trajectory_metrics = include_trajectory_metrics
+        self.pixel_resolution = pixel_resolution
         self.keys = ['iou', 'true_positive', 'false_positive', 'false_negative']
 
         self.add_state('iou', default=torch.zeros(n_classes), dist_reduce_fx='sum')
         self.add_state('true_positive', default=torch.zeros(n_classes), dist_reduce_fx='sum')
         self.add_state('false_positive', default=torch.zeros(n_classes), dist_reduce_fx='sum')
         self.add_state('false_negative', default=torch.zeros(n_classes), dist_reduce_fx='sum')
+
+        if self.include_trajectory_metrics:
+            # Average Displacement Error
+            self.add_state('ade', default=torch.zeros(n_classes), dist_reduce_fx='sum')
+            # Final Displacement Error
+            self.add_state('fde', default=torch.zeros(n_classes), dist_reduce_fx='sum')
+            self.add_state('fde_counts', default=torch.zeros(n_classes), dist_reduce_fx='sum')
 
     def update(self, pred_instance, gt_instance):
         """
@@ -105,18 +116,27 @@ class PanopticMetric(Metric):
         for b in range(batch_size):
             unique_id_mapping = {}
             for t in range(sequence_length):
+                is_end_of_trajectory = t == sequence_length - 1
                 result = self.panoptic_metrics(
                     pred_segmentation[b, t].detach(),
                     pred_instance[b, t].detach(),
                     gt_segmentation[b, t],
                     gt_instance[b, t],
                     unique_id_mapping,
+                    is_end_of_trajectory,
                 )
 
                 self.iou += result['iou']
                 self.true_positive += result['true_positive']
                 self.false_positive += result['false_positive']
                 self.false_negative += result['false_negative']
+
+                if self.include_trajectory_metrics:
+                    self.ade += result['ade']
+
+                    if is_end_of_trajectory:
+                        self.fde += result['fde']
+                        self.fde_counts += result['fde_counts']
 
     def compute(self):
         denominator = torch.maximum(
@@ -127,14 +147,23 @@ class PanopticMetric(Metric):
         sq = self.iou / torch.maximum(self.true_positive, torch.ones_like(self.true_positive))
         rq = self.true_positive / denominator
 
-        return {'pq': pq,
-                'sq': sq,
-                'rq': rq,
-                # If 0, it means there wasn't any detection.
-                'denominator': (self.true_positive + self.false_positive / 2 + self.false_negative / 2),
-                }
+        output_metrics = {'pq': pq,
+                          'sq': sq,
+                          'rq': rq,
+                           # If 0, it means there wasn't any detection.
+                          'denominator': (self.true_positive + self.false_positive / 2 + self.false_negative / 2),
+                          }
+        if self.include_trajectory_metrics:
+            ade = self.ade / torch.maximum(self.true_positive, torch.ones_like(self.true_positive))
+            output_metrics['ade'] = self.pixel_resolution * ade
 
-    def panoptic_metrics(self, pred_segmentation, pred_instance, gt_segmentation, gt_instance, unique_id_mapping):
+            fde = self.fde / torch.maximum(self.fde_counts, torch.ones_like(self.fde_counts))
+            output_metrics['fde'] = self.pixel_resolution * fde
+
+        return output_metrics
+
+    def panoptic_metrics(self, pred_segmentation, pred_instance, gt_segmentation, gt_instance, unique_id_mapping,
+                         is_end_of_trajectory=False):
         """
         Computes panoptic quality metric components.
 
@@ -149,6 +178,17 @@ class PanopticMetric(Metric):
         n_classes = self.n_classes
 
         result = {key: torch.zeros(n_classes, dtype=torch.float32, device=gt_instance.device) for key in self.keys}
+
+        if self.include_trajectory_metrics:
+            result['ade'] = torch.zeros(n_classes, dtype=torch.float32, device=gt_instance.device)
+            if is_end_of_trajectory:
+                result['fde'] = torch.zeros(n_classes, dtype=torch.float32, device=gt_instance.device)
+                result['fde_counts'] = torch.zeros(n_classes, dtype=torch.float32, device=gt_instance.device)
+            h, w = gt_instance.shape
+            grid = torch.stack(torch.meshgrid(
+                torch.arange(h, dtype=torch.float, device=gt_instance.device),
+                torch.arange(w, dtype=torch.float, device=gt_instance.device)
+            )).view(2, -1)
 
         assert pred_segmentation.dim() == 2
         assert pred_segmentation.shape == pred_instance.shape == gt_segmentation.shape == gt_instance.shape
@@ -204,6 +244,18 @@ class PanopticMetric(Metric):
             result['iou'][cls_id] += iou[target_id][pred_id]
             unique_id_mapping[target_id.item()] = pred_id.item()
 
+            if self.temporally_consistent and self.include_trajectory_metrics:
+                if cls_id == self.vehicles_id:
+                    # Add 1 to class because void class was dropped
+                    l2_distance = self.compute_l2_distance_centers(
+                        grid, target, prediction, target_id + 1, pred_id + 1
+                    )
+                    result['ade'][cls_id] += l2_distance
+
+                    if is_end_of_trajectory:
+                        result['fde'][cls_id] += l2_distance
+                        result['fde_counts'][cls_id] += 1
+
         for target_id in range(n_classes, n_all_things):
             # If this is a true positive do nothing.
             if tp_mask[target_id, n_classes:].any():
@@ -221,6 +273,11 @@ class PanopticMetric(Metric):
                 result['false_positive'][pred_to_cls[pred_id]] += 1
 
         return result
+
+    def compute_l2_distance_centers(self, grid, target, prediction, target_id, pred_id):
+        target_center = grid[:, target == target_id].mean(dim=-1)
+        pred_center = grid[:, prediction == pred_id].mean(dim=-1)
+        return torch.linalg.norm(target_center - pred_center, ord=2)
 
     def combine_mask(self, segmentation: torch.Tensor, instance: torch.Tensor, n_classes: int, n_all_things: int):
         """Shifts all things ids by num_classes and combines things and stuff into a single mask

@@ -10,9 +10,11 @@ from fiery.utils.network import preprocess_batch
 from fiery.utils.instance import predict_instance_segmentation_and_trajectories
 
 # 30mx30m, 100mx100m
-EVALUATION_RANGES = {'30x30': (70, 130),
+EVALUATION_RANGES = {#'30x30': (70, 130),
                      '100x100': (0, 200)
                      }
+
+INCLUDE_TRAJECTORY_METRICS = True
 
 
 def eval(checkpoint_path, dataroot, version):
@@ -31,18 +33,22 @@ def eval(checkpoint_path, dataroot, version):
     cfg.DATASET.DATAROOT = dataroot
     cfg.DATASET.VERSION = version
 
-    _, valloader = prepare_dataloaders(cfg)
+    _, valloader, _, val_dataset = prepare_dataloaders(cfg)
 
     panoptic_metrics = {}
     iou_metrics = {}
     n_classes = len(cfg.SEMANTIC_SEG.WEIGHTS)
     for key in EVALUATION_RANGES.keys():
-        panoptic_metrics[key] = PanopticMetric(n_classes=n_classes, temporally_consistent=True).to(
-            device)
-        iou_metrics[key] = IntersectionOverUnion(n_classes).to(device)
+        panoptic_metrics[key] = PanopticMetric(
+            n_classes=n_classes, temporally_consistent=True, include_trajectory_metrics=INCLUDE_TRAJECTORY_METRICS,
+            pixel_resolution=cfg.LIFT.X_BOUND[-1],
+        ).to(device)
+        #iou_metrics[key] = IntersectionOverUnion(n_classes).to(device)
 
-    for i, batch in enumerate(tqdm(valloader)):
-        preprocess_batch(batch, device)
+    #for i, batch in enumerate(tqdm(valloader)):
+    for i in tqdm(range(0, len(val_dataset), 1)):
+        batch = val_dataset[i]
+        preprocess_batch(batch, device, unsqueeze=True)
         image = batch['image']
         intrinsics = batch['intrinsics']
         extrinsics = batch['extrinsics']
@@ -72,9 +78,9 @@ def eval(checkpoint_path, dataroot, version):
                                   labels['instance'][..., limits, limits].contiguous()
                                   )
 
-            iou_metrics[key](segmentation_pred[..., limits, limits].contiguous(),
-                             labels['segmentation'][..., limits, limits].contiguous()
-                             )
+            # iou_metrics[key](segmentation_pred[..., limits, limits].contiguous().detach(),
+            #                  labels['segmentation'][..., limits, limits].contiguous()
+            #                  )
 
     results = {}
     for key, grid in EVALUATION_RANGES.items():
@@ -82,10 +88,10 @@ def eval(checkpoint_path, dataroot, version):
         for panoptic_key, value in panoptic_scores.items():
             results[f'{panoptic_key}'] = results.get(f'{panoptic_key}', []) + [100 * value[1].item()]
 
-        iou_scores = iou_metrics[key].compute()
-        results['iou'] = results.get('iou', []) + [100 * iou_scores[1].item()]
+        #iou_scores = iou_metrics[key].compute()
+        #results['iou'] = results.get('iou', []) + [100 * iou_scores[1].item()]
 
-    for panoptic_key in ['iou', 'pq', 'sq', 'rq']:
+    for panoptic_key in ['pq', 'sq', 'rq', 'ade', 'fde']: #['iou'
         print(panoptic_key)
         print(' & '.join([f'{x:.1f}' for x in results[panoptic_key]]))
 

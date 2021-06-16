@@ -3,3 +3,5 @@ example_data/
 output_vis/
 .idea/
 *.pyc
+*.ckpt
+*.ipynb
