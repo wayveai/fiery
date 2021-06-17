@@ -14,7 +14,7 @@ def main():
     args = get_parser().parse_args()
     cfg = get_cfg(args)
 
-    trainloader, valloader = prepare_dataloaders(cfg)
+    trainloader, valloader, _, _ = prepare_dataloaders(cfg)
     model = TrainingModule(cfg.convert_to_dict())
 
     if cfg.PRETRAINED.LOAD_WEIGHTS:

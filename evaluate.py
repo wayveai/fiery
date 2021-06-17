@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from time import time
 
 import torch
 from tqdm import tqdm
@@ -14,9 +15,9 @@ EVALUATION_RANGES = {'30x30': (70, 130),
                      '100x100': (0, 200)
                      }
 
-EVALUATE_ORACLE = True
+EVALUATE_ORACLE = False
 INCLUDE_TRAJECTORY_METRICS = True
-EVALUATE_N_SAMPLES = True
+EVALUATE_N_SAMPLES = False
 N_SAMPLES = 1
 NOISE_SCALE = 20.0
 
@@ -130,7 +131,10 @@ def eval(checkpoint_path, dataroot, version):
         torch.manual_seed(0)
 
     #for i, batch in enumerate(tqdm(valloader)):
-    for i in tqdm(range(0, len(val_dataset), 1)):
+
+    total_time = 0.0
+    count = 0.0
+    for i in tqdm(range(0, len(val_dataset), 10)):
         batch = val_dataset[i]
         preprocess_batch(batch, device, unsqueeze=True)
         image = batch['image']
@@ -147,8 +151,14 @@ def eval(checkpoint_path, dataroot, version):
             if not EVALUATE_N_SAMPLES:
                 # Evaluate with mean prediction
                 noise = torch.zeros((batch_size, 1, model.latent_dim), device=device)
+
+                t0 = time()
                 output = model(image, intrinsics, extrinsics, future_egomotion,
                                future_distribution_inputs, noise=noise)
+                t1 = time()
+
+                total_time += t1 - t0
+                count += 1
 
                 #  Consistent instance seg
                 pred_consistent_instance_seg = predict_instance_segmentation_and_trajectories(
@@ -202,6 +212,8 @@ def eval(checkpoint_path, dataroot, version):
 
     results = {}
 
+    print(f'Forward pass: {count/total_time:.2f}Hz')
+
     if not EVALUATE_N_SAMPLES:
         for key, grid in EVALUATION_RANGES.items():
             panoptic_scores = panoptic_metrics[key].compute()
@@ -211,7 +223,7 @@ def eval(checkpoint_path, dataroot, version):
             #iou_scores = iou_metrics[key].compute()
             #results['iou'] = results.get('iou', []) + [100 * iou_scores[1].item()]
 
-        for panoptic_key in ['pq', 'sq', 'rq', 'ade', 'fde', 'tp', 'fp', 'fn']: #['iou'
+        for panoptic_key in ['pq', 'sq', 'rq', 'ade', 'fde']: #['iou'
             print(panoptic_key)
             print(' & '.join([f'{x:.1f}' for x in results[panoptic_key]]))
     else:

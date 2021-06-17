@@ -1,0 +1,31 @@
+_BASE_: 'baseline.yml'
+
+TAG: '1_frames'
+LOG_DIR: '/home/anthony/experiments/temp'
+
+GPUS: [0]
+BATCHSIZE: 1
+EPOCHS: 1
+LOGGING_INTERVAL: 10
+
+PRECISION: 16
+
+TIME_RECEPTIVE_FIELD: 1
+
+IMAGE:
+  FINAL_DIM: (128, 352)
+  RESIZE_SCALE: 0.3
+DATASET:
+  DATAROOT: '/home/anthony/datasets/nuscenes/'
+  VERSION: 'mini'
+
+MODEL:
+  ENCODER:
+    DOWNSAMPLE: 16
+    NAME: 'efficientnet-b0'
+  TEMPORAL_MODEL:
+    NAME: 'identity'
+
+VIS_INTERVAL: 8
+
+N_WORKERS: 10

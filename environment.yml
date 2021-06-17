@@ -20,3 +20,4 @@ dependencies:
     - nuscenes-devkit==1.1.0
     - lyft-dataset-sdk==0.0.8
     - opencv-python==4.5.1.48
+    - moviepy==1.0.3

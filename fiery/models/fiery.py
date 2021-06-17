@@ -10,6 +10,8 @@ from fiery.utils.network import pack_sequence_dim, unpack_sequence_dim, set_bn_m
 from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_view_parameters, VoxelsSumming
 
 
+USE_CACHE = False
+
 class Fiery(nn.Module):
     def __init__(self, cfg):
         super().__init__()
@@ -137,7 +139,16 @@ class Fiery(nn.Module):
         future_egomotion = future_egomotion[:, :self.receptive_field].contiguous()
 
         # Lifting features and project to bird's-eye view
+
+        if USE_CACHE:
+            image = image[:, :1].contiguous()
+            intrinsics = intrinsics[:, :1].contiguous()
+            extrinsics = extrinsics[:, :1].contiguous()
+
         x = self.calculate_birds_eye_view_features(image, intrinsics, extrinsics)
+
+        if USE_CACHE:
+            x = x.expand(-1, self.receptive_field, -1, -1, -1)
 
         # Warp past features to the present's reference frame
         x = cumulative_warp_features(
