@@ -6,7 +6,7 @@ from pytorch_lightning.metrics.functional.classification import stat_scores_mult
 from pytorch_lightning.metrics.functional.reduction import reduce
 
 
-MATCH_THRESHOLD = 0.25
+MATCH_THRESHOLD = 0.5
 
 
 class IntersectionOverUnion(Metric):
@@ -313,3 +313,90 @@ class PanopticMetric(Metric):
         segmentation[~segmentation_mask] = 0  # Shift void class to zero.
 
         return segmentation, instance_id_to_class
+
+
+class NSamplesPanopticMetric(Metric):
+    """
+    Computes IOU.
+    Args:
+        ...
+        compute_on_step:
+            Forward only calls ``update()`` and return None if this is set to False. default: True
+        dist_sync_on_step:
+            Synchronize metric state across processes at each ``forward()``
+            before returning the value at the step. default: False
+        process_group:
+            Specify the process group on which synchronization is called. default: None (which selects the entire world)
+        dist_sync_fn:
+            Callback that performs the allgather operation on the metric state. When `None`, DDP
+            will be used to perform the allgather. default: None
+    """
+
+    def __init__(
+        self,
+        num_classes: int,
+        temporally_consistent: bool = True,
+        include_trajectory_metrics: bool = False,
+        pixel_resolution: float = 1.0,
+        compute_on_step: bool = False,
+        dist_sync_on_step: bool = False,
+        process_group=None,
+        # dist_sync_fn: Callable = None,
+    ):
+        super().__init__(
+            compute_on_step=compute_on_step,
+            dist_sync_on_step=dist_sync_on_step,
+            process_group=process_group,
+            # dist_sync_fn=dist_sync_fn,
+        )
+
+        self.num_classes = num_classes
+
+        self.panoptic_metric = PanopticMetric(num_classes, temporally_consistent=temporally_consistent,
+                                              include_trajectory_metrics=include_trajectory_metrics,
+                                              pixel_resolution=pixel_resolution,
+                                              compute_on_step=compute_on_step,
+                                              )
+
+        self.add_state("ade", default=torch.zeros(num_classes), dist_reduce_fx="sum")
+        self.add_state("fde", default=torch.zeros(num_classes), dist_reduce_fx="sum")
+        self.add_state("n_elements", default=torch.zeros(num_classes), dist_reduce_fx="sum")
+
+    def update(self, pred_instance_samples: torch.Tensor, gt_instance: torch.Tensor):
+        """
+        Update state with predictions and targets.
+        Args:
+            pred_instance_samples: (b, n_samples, s, h, w)
+            gt_instance: (b, s, h, w)
+        """
+        assert len(pred_instance_samples.shape) == 5
+        batch_size, n_samples = pred_instance_samples.shape[:2]
+
+        for b in range(batch_size):
+            ade_list = []
+            fde_list = []
+            for i in range(n_samples):
+                self.panoptic_metric(pred_instance_samples[b:b+1, i], gt_instance[b:b+1])
+                score = self.panoptic_metric.compute()
+                self.panoptic_metric.reset()
+                if score['denominator'][1] > 0:
+                    ade_list.append(score['ade'][1])
+                    fde_list.append(score['fde'][1])
+
+            if len(ade_list) > 0:
+                ade_list = torch.stack(ade_list, dim=-1)
+                fde_list = torch.stack(fde_list, dim=-1)
+
+                index = torch.argmin(ade_list, dim=-1)
+
+                self.ade += ade_list[index]
+                self.fde += fde_list[index]
+                self.n_elements += 1
+
+    def compute(self):
+        ade = self.ade / self.n_elements
+        fde = self.fde / self.n_elements
+
+        return {'ade': ade,
+                'fde': fde,
+                }

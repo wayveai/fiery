@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from fiery.data import prepare_dataloaders
 from fiery.trainer import TrainingModule
-from fiery.metrics import PanopticMetric
+from fiery.metrics import PanopticMetric, NSamplesPanopticMetric
 from fiery.utils.network import preprocess_batch
 from fiery.utils.instance import predict_instance_segmentation_and_trajectories,\
     get_instance_segmentation_and_centers, make_instance_id_temporally_consistent, \
@@ -17,6 +17,7 @@ from fiery.utils.geometry import cumulative_warp_features
 LOWER_BOUND = 5.0
 MATCHING_THRESHOLD = 10.0
 
+EVALUATE_N_SAMPLES = True
 INCLUDE_TRAJECTORY_METRICS = True
 VEHICLES_ID = 1
 
@@ -39,7 +40,7 @@ cfg.BATCHSIZE = 1
 
 if socket.gethostname() == 'auris':
     cfg.DATASET.DATAROOT = '/home/anthony/datasets/nuscenes'
-    cfg.DATASET.VERSION = 'trainval'
+    cfg.DATASET.VERSION = 'mini'
 
 cfg.TIME_RECEPTIVE_FIELD = 3
 cfg.N_FUTURE_FRAMES = 4
@@ -62,7 +63,17 @@ for key in EVALUATION_RANGES.keys():
                                            ).to(
         device)
 
-for i in tqdm(range(0, len(val_dataset), 10)):
+if EVALUATE_N_SAMPLES:
+    diversity_distance_metrics = {}
+    for key in EVALUATION_RANGES.keys():
+        diversity_distance_metrics[key] = NSamplesPanopticMetric(
+            num_classes=2, temporally_consistent=True,
+            include_trajectory_metrics=INCLUDE_TRAJECTORY_METRICS,
+            pixel_resolution=cfg.LIFT.X_BOUND[-1],
+        ).to(device)
+    torch.manual_seed(0)
+
+for i in tqdm(range(0, len(val_dataset), 1)):
     batch = val_dataset[i]
     preprocess_batch(batch, device, unsqueeze=True)
 
@@ -181,18 +192,36 @@ for i in tqdm(range(0, len(val_dataset), 10)):
 
     segmentation_pred = (extrapolated_instance_seg > 0).long()
 
+    if EVALUATE_N_SAMPLES:
+        extrapolated_instance_seg = extrapolated_instance_seg.unsqueeze(1)
+
     for key, grid in EVALUATION_RANGES.items():
         limits = slice(grid[0], grid[1])
-        panoptic_metrics[key](extrapolated_instance_seg[..., limits, limits].contiguous(),
-                              labels['instance'][..., limits, limits].contiguous()
-                              )
+
+        if not EVALUATE_N_SAMPLES:
+            panoptic_metrics[key](extrapolated_instance_seg[..., limits, limits].contiguous().detach(),
+                                  labels['instance'][..., limits, limits].contiguous()
+                                  )
+        else:
+            diversity_distance_metrics[key](extrapolated_instance_seg[..., limits, limits].contiguous(),
+                                            labels['instance'][..., limits, limits].contiguous())
 
 results_json = {}
-for key, grid in EVALUATION_RANGES.items():
-    panoptic_scores = panoptic_metrics[key].compute()
-    for panoptic_key, value in panoptic_scores.items():
-        results_json[f'{panoptic_key}'] = results_json.get(f'{panoptic_key}', []) + [100 * value[1].item()]
 
-for panoptic_key in ['pq', 'sq', 'rq', 'ade', 'fde']:
-    print(panoptic_key)
-    print(' & '.join([f'{x:.1f}' for x in results_json[panoptic_key]]))
+if not EVALUATE_N_SAMPLES:
+    for key, grid in EVALUATION_RANGES.items():
+        panoptic_scores = panoptic_metrics[key].compute()
+        for panoptic_key, value in panoptic_scores.items():
+            results_json[f'{panoptic_key}'] = results_json.get(f'{panoptic_key}', []) + [100 * value[1].item()]
+
+    for panoptic_key in ['pq', 'sq', 'rq', 'ade', 'fde']:
+        print(panoptic_key)
+        print(' & '.join([f'{x:.1f}' for x in results_json[panoptic_key]]))
+
+else:
+    for key, grid in EVALUATION_RANGES.items():
+        print(f'Range {grid}---------')
+        diversity_scores = diversity_distance_metrics[key].compute()
+        print(
+            f'ADE: {diversity_scores["ade"][1]:.3f}, fde: {diversity_scores["fde"][1]:.3f},')
+        print('\n')
