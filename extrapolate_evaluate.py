@@ -39,16 +39,13 @@ cfg.BATCHSIZE = 1
 
 if socket.gethostname() == 'auris':
     cfg.DATASET.DATAROOT = '/home/anthony/datasets/nuscenes'
-    cfg.DATASET.VERSION = 'mini'
+    cfg.DATASET.VERSION = 'trainval'
 
 cfg.TIME_RECEPTIVE_FIELD = 3
 cfg.N_FUTURE_FRAMES = 4
 model.receptive_field = cfg.TIME_RECEPTIVE_FIELD
 model.temporal_model.receptive_field = cfg.TIME_RECEPTIVE_FIELD
 model.n_future = cfg.N_FUTURE_FRAMES
-
-cfg.EVAL.EXTRAPOLATE = True
-
 
 t_present = model.receptive_field - 1
 n_future = model.n_future
@@ -65,9 +62,9 @@ for key in EVALUATION_RANGES.keys():
                                            ).to(
         device)
 
-
-for i, batch in enumerate(tqdm(valloader)):
-    preprocess_batch(batch, device)
+for i in tqdm(range(0, len(val_dataset), 10)):
+    batch = val_dataset[i]
+    preprocess_batch(batch, device, unsqueeze=True)
 
     imgs = batch['image']
     extrinsics = batch['extrinsics']

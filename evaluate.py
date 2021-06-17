@@ -14,7 +14,7 @@ EVALUATION_RANGES = {'30x30': (70, 130),
                      '100x100': (0, 200)
                      }
 
-EVALUATE_ORACLE = True
+EVALUATE_ORACLE = False
 INCLUDE_TRAJECTORY_METRICS = True
 
 

@@ -124,7 +124,6 @@ _C.GRAD_NORM_CLIP = 5
 
 _C.EVAL = CN()
 _C.EVAL.EVALUATE_ORACLE = False
-_C.EVAL.EXTRAPOLATE = False
 
 
 def get_parser():
