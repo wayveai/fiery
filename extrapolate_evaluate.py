@@ -40,7 +40,7 @@ cfg.BATCHSIZE = 1
 
 if socket.gethostname() == 'auris':
     cfg.DATASET.DATAROOT = '/home/anthony/datasets/nuscenes'
-    cfg.DATASET.VERSION = 'mini'
+    cfg.DATASET.VERSION = 'trainval'
 
 cfg.TIME_RECEPTIVE_FIELD = 3
 cfg.N_FUTURE_FRAMES = 4
@@ -73,7 +73,7 @@ if EVALUATE_N_SAMPLES:
         ).to(device)
     torch.manual_seed(0)
 
-for i in tqdm(range(0, len(val_dataset), 1)):
+for i in tqdm(range(0, len(val_dataset), 100)):
     batch = val_dataset[i]
     preprocess_batch(batch, device, unsqueeze=True)
 

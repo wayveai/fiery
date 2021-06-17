@@ -17,7 +17,7 @@ EVALUATION_RANGES = {'30x30': (70, 130),
 
 EVALUATE_ORACLE = False
 INCLUDE_TRAJECTORY_METRICS = True
-EVALUATE_N_SAMPLES = False
+EVALUATE_N_SAMPLES = True
 N_SAMPLES = 1
 NOISE_SCALE = 20.0
 
@@ -132,9 +132,7 @@ def eval(checkpoint_path, dataroot, version):
 
     #for i, batch in enumerate(tqdm(valloader)):
 
-    total_time = 0.0
-    count = 0.0
-    for i in tqdm(range(0, len(val_dataset), 10)):
+    for i in tqdm(range(0, len(val_dataset), 100)):
         batch = val_dataset[i]
         preprocess_batch(batch, device, unsqueeze=True)
         image = batch['image']
@@ -156,9 +154,6 @@ def eval(checkpoint_path, dataroot, version):
                 output = model(image, intrinsics, extrinsics, future_egomotion,
                                future_distribution_inputs, noise=noise)
                 t1 = time()
-
-                total_time += t1 - t0
-                count += 1
 
                 #  Consistent instance seg
                 pred_consistent_instance_seg = predict_instance_segmentation_and_trajectories(
@@ -211,8 +206,6 @@ def eval(checkpoint_path, dataroot, version):
             #                  )
 
     results = {}
-
-    print(f'Forward pass: {count/total_time:.2f}Hz')
 
     if not EVALUATE_N_SAMPLES:
         for key, grid in EVALUATION_RANGES.items():

@@ -12,6 +12,7 @@ from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_v
 
 USE_CACHE = False
 
+
 class Fiery(nn.Module):
     def __init__(self, cfg):
         super().__init__()
