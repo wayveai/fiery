@@ -3,3 +3,6 @@ example_data/
 output_vis/
 .idea/
 *.pyc
+*.ipynb_checkpoints
+*.ipynb
+*.ckpt
