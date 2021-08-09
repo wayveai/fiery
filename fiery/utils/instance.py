@@ -30,7 +30,7 @@ def convert_instance_mask_to_center_and_offset_label(instance_img, future_egomot
         warped_instance_seg[t] = warped_inst_t[0, 0]
 
     # Ignore id 0 which is the background
-    for instance_id in range(1, num_instances):
+    for instance_id in range(1, num_instances+1):
         prev_xc = None
         prev_yc = None
         prev_mask = None
