@@ -1,0 +1,16 @@
+_BASE_: '../baseline.yml'
+
+TAG: 'fishing_setting'
+
+BATCHSIZE: 2
+
+PRETRAINED:
+  PATH: '/home/wayve/experiments/nuscenes/single_timeframe/10August2021at11:06:37UTC_vm-prod-training-dgx-05_fishing_setting_single_timeframe/default/version_0/checkpoints/epoch=12-step=21659.ckpt'
+
+DATASET:
+  FILTER_INVISIBLE_VEHICLES: False
+
+LIFT:
+  D_BOUND: [2.0, 16.0, 0.5]
+  X_BOUND: [-16.0, 16.0, 0.1]
+  Y_BOUND: [-9.6, 9.7, 0.1]

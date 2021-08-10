@@ -1,6 +1,9 @@
-_BASE_: '../single_timeframe.yml'
+_BASE_: '../temporal_single_timeframe.yml'
 
-TAG: 'lift_splat_setting'
+TAG: 'temporal_lift_splat_setting'
+
+PRETRAINED:
+  PATH: '/home/wayve/experiments/nuscenes/single_timeframe/10August2021at11:03:01UTC_vm-prod-training-dgx-05_lift_splat_setting/default/version_0/checkpoints/epoch=8-step=14225.ckpt'
 
 DATASET:
   FILTER_INVISIBLE_VEHICLES: False

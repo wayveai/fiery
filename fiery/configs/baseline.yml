@@ -1,13 +1,17 @@
 LOGDIR: '../experiments/nuscenes/baseline'
 TAG: 'fiery'
 
-GPUS: [0, 1, 2, 3]
+GPUS: [0, 1] #[0, 1, 2, 3]
 
 BATCHSIZE: 3
 PRECISION: 16
 
 TIME_RECEPTIVE_FIELD: 3
 N_FUTURE_FRAMES: 4
+
+PRETRAINED:
+  LOAD_WEIGHTS: True
+  PATH: '/home/wayve/experiments/nuscenes/single_timeframe/10August2021at11:00:51UTC_vm-prod-training-dgx-05_single_timeframe_model/default/version_0/checkpoints/epoch=8-step=14556.ckpt'
 
 PROBABILISTIC:
   ENABLED: True
@@ -24,4 +28,4 @@ INSTANCE_FLOW:
 OPTIMIZER:
   LR: 3e-4
 
-N_WORKERS: 20
+N_WORKERS: 10 #20
