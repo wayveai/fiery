@@ -1,4 +1,4 @@
-LOGDIR: '../experiments/nuscenes/baseline'
+LOG_DIR: '../experiments/nuscenes/baseline'
 TAG: 'fiery'
 
 GPUS: [0, 1] #[0, 1, 2, 3]
