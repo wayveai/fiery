@@ -1,0 +1,19 @@
+_BASE_: 'single_timeframe.yml'
+
+LOG_DIR: '../experiments/nuscenes/temporal_single_timeframe'
+TAG: 'temporal_single_timeframe'
+
+BATCHSIZE: 4
+PRECISION: 16
+
+TIME_RECEPTIVE_FIELD: 3
+
+PRETRAINED:
+  LOAD_WEIGHTS: True
+  PATH: '/home/wayve/experiments/nuscenes/single_timeframe/10August2021at11:00:51UTC_vm-prod-training-dgx-05_single_timeframe_model/default/version_0/checkpoints/epoch=8-step=14556.ckpt'
+
+MODEL:
+  BN_MOMENTUM: 0.05
+  TEMPORAL_MODEL:
+    NAME: 'temporal_block'
+    INPUT_EGOPOSE: True
