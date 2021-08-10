@@ -1,5 +1,4 @@
-_BASE_: 'single_timeframe.yml'
-
+LOGDIR: '../experiments/nuscenes/baseline'
 TAG: 'fiery'
 
 GPUS: [0, 1, 2, 3]

@@ -47,7 +47,7 @@ _C.PRETRAINED.LOAD_WEIGHTS = False
 _C.PRETRAINED.PATH = ''
 
 _C.DATASET = CN()
-_C.DATASET.DATAROOT = './datasets/nuscenes/'
+_C.DATASET.DATAROOT = '/home/wayve/datasets/nuscenes/'
 _C.DATASET.VERSION = 'trainval'
 _C.DATASET.NAME = 'nuscenes'
 _C.DATASET.IGNORE_INDEX = 255  # Ignore index when creating flow/offset labels
