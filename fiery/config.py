@@ -122,6 +122,9 @@ _C.OPTIMIZER.LR = 3e-4
 _C.OPTIMIZER.WEIGHT_DECAY = 1e-7
 _C.GRAD_NORM_CLIP = 5
 
+_C.DEBUG_OVERFIT = False
+_C.LOAD_GLOBAL_IDS = False
+
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Fiery training')

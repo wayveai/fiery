@@ -309,6 +309,17 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         return segmentation, instance, z_position, instance_map, attribute_label
 
+    def get_instseg_global(self, index):
+        # Load saved labels
+        label_path = os.path.join(
+            self.dataroot, f'global_instance_id_{2 * self.spatial_extent[0]}x{2 * self.spatial_extent[1]}',
+            self.mode, f'global_instance_id_{index:08d}.png'
+        )
+
+        instseg = np.asarray(Image.open(label_path)).astype(np.int64)
+        instseg = torch.Tensor(instseg).long().unsqueeze(0)
+        return instseg
+
     def get_future_egomotion(self, rec, index):
         rec_t0 = rec
 
@@ -375,6 +386,9 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         for key in keys:
             data[key] = []
 
+        if self.cfg.LOAD_GLOBAL_IDS:
+            data['global_instance'] = []
+
         instance_map = {}
         # Loop over all the frames in the sequence.
         for index_t in self.indices[index]:
@@ -384,6 +398,10 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             segmentation, instance, z_position, instance_map, attribute_label = self.get_label(rec, instance_map)
 
             future_egomotion = self.get_future_egomotion(rec, index_t)
+
+            if self.cfg.LOAD_GLOBAL_IDS:
+                global_instance_seg = self.get_instseg_global(index_t)
+                data['global_instance'].append(global_instance_seg)
 
             data['image'].append(images)
             data['intrinsics'].append(intrinsics)
@@ -426,7 +444,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return data
 
 
-def prepare_dataloaders(cfg):
+def prepare_dataloaders(cfg, return_dataset=False):
     version = cfg.DATASET.VERSION
     train_on_training_data = True
 
@@ -445,9 +463,9 @@ def prepare_dataloaders(cfg):
     traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
     valdata = FuturePredictionDataset(nusc, False, cfg)
 
-    if version == 'mini':
+    if cfg.DEBUG_OVERFIT:
         traindata.indices = traindata.indices[:10]
-        valdata.indices = valdata.indices[30:36]
+        valdata = traindata
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(
@@ -456,4 +474,7 @@ def prepare_dataloaders(cfg):
     valloader = torch.utils.data.DataLoader(
         valdata, batch_size=cfg.BATCHSIZE, shuffle=False, num_workers=nworkers, pin_memory=True, drop_last=False)
 
-    return trainloader, valloader
+    if return_dataset:
+        return trainloader, valloader, traindata, valdata
+    else:
+        return trainloader, valloader
