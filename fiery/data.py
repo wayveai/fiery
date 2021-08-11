@@ -463,6 +463,9 @@ def prepare_dataloaders(cfg, return_dataset=False):
     traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
     valdata = FuturePredictionDataset(nusc, False, cfg)
 
+    traindata.indices = traindata.indices[:10]
+    valdata.indices = valdata.indices[:10]
+    
     if cfg.DEBUG_OVERFIT:
         traindata.indices = traindata.indices[:10]
         valdata = traindata

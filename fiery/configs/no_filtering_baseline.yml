@@ -1,0 +1,9 @@
+_BASE_: 'baseline.yml'
+
+TAG: 'no_filtering_4gpus'
+
+DATASET:
+  FILTER_INVISIBLE_VEHICLES: False
+
+PRETRAINED:
+  PATH: '/home/anthony/experiments/nuscenes/temporal_single_timeframe/10August2021at20:22:35UTC_vm-prod-training-dgx-05_temporal_lift_splat_setting/default/version_0/checkpoints/epoch=6-step=20074.ckpt'

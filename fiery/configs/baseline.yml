@@ -1,7 +1,7 @@
 LOG_DIR: '../experiments/nuscenes/baseline'
-TAG: 'fiery'
+TAG: 'fiery_4gpus'
 
-GPUS: [0, 1] #[0, 1, 2, 3]
+GPUS: [0, 1, 2, 3]
 
 BATCHSIZE: 3
 PRECISION: 16
@@ -28,4 +28,4 @@ INSTANCE_FLOW:
 OPTIMIZER:
   LR: 3e-4
 
-N_WORKERS: 10 #20
+N_WORKERS: 20

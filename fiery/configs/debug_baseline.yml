@@ -1,11 +1,11 @@
-_BASE_: 'temporal_single_timeframe.yml'
+_BASE_: 'no_filtering_baseline.yml'
 
 LOG_DIR: '../experiments/nuscenes/debug'
 TAG: 'debug'
 
 EPOCHS: 2
-#BATCHSIZE: 1
-#GPUS: [0]
+BATCHSIZE: 1
+GPUS: [0]
 LOGGING_INTERVAL: 10
 
 DATASET:
