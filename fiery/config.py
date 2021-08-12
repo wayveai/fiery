@@ -54,7 +54,7 @@ _C.DATASET.IGNORE_INDEX = 255  # Ignore index when creating flow/offset labels
 _C.DATASET.FILTER_INVISIBLE_VEHICLES = True
 
 _C.TIME_RECEPTIVE_FIELD = 3  # how many frames of temporal context (1 for single timeframe)
-_C.N_FUTURE_FRAMES = 3  # how many time steps into the future to predict
+_C.N_FUTURE_FRAMES = 4  # how many time steps into the future to predict
 
 _C.IMAGE = CN()
 _C.IMAGE.FINAL_DIM = (224, 480)
