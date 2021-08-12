@@ -11,7 +11,7 @@ described in:
 [‪Vijay Badrinarayanan](https://sites.google.com/site/vijaybacademichomepage/home), 
 [Roberto Cipolla](https://mi.eng.cam.ac.uk/~cipolla/index.htm) and [Alex Kendall](https://alexgkendall.com/)  
 >
-> [preprint (2021)](https://arxiv.org/abs/2104.10490)<br/>
+> [ICCV Oral (2021)](https://arxiv.org/abs/2104.10490)<br/>
 > [Blog post](https://wayve.ai/blog/fiery-future-instance-prediction-birds-eye-view)
 
 <p align="center">
