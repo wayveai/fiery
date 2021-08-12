@@ -61,9 +61,9 @@ All the configs are in the folder `fiery/configs`
 |--------------|---------|-----------------------|----------------|----------|------|----|
 | [`baseline.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/fiery.ckpt) | NuScenes | 1.0s | 2.0s | 100mx100m (50cm res.) | 36.7 | 29.9 |
 | [`lyft/baseline.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/lyft_fiery.ckpt) | Lyft | 0.8s | 2.0s| 100mx100m (50cm res.) | 36.3 | 29.2 |
-| [`literature/static_pon_setting.yml`]() | NuScenes| 0.0s | 0.0s | 100mx50m (25cm res.) | 37.7| - |
+| [`literature/static_pon_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/static_pon_setting.ckpt) | NuScenes| 0.0s | 0.0s | 100mx50m (25cm res.) | 37.7| - |
 | [`literature/pon_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/pon_setting.ckpt) | NuScenes| 1.0s | 0.0s | 100mx50m (25cm res.) |39.9 | - |
-| [`literature/static_lss_setting.yml`]() | NuScenes | 0.0s | 0.0s | 100mx100m (50cm res.) | 35.8 | - |
+| [`literature/static_lss_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/static_lift_splat_setting.ckpt) | NuScenes | 0.0s | 0.0s | 100mx100m (50cm res.) | 35.8 | - |
 | [`literature/lift_splat_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/lift_splat_setting.ckpt) | NuScenes | 1.0s | 0.0s | 100mx100m (50cm res.) | 38.2 | - |
 | [`literature/fishing_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/fishing_setting.ckpt) | NuScenes | 1.0s | 2.0s | 32.0mx19.2m (10cm res.) | 57.6 | - |
 
