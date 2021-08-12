@@ -29,7 +29,7 @@ If you find our work useful, please consider citing:
   title     = {{FIERY}: Future Instance Segmentation in Bird's-Eye view from Surround Monocular Cameras},
   author    = {Anthony Hu and Zak Murez and Nikhil Mohan and Sofía Dudas and 
                Jeffrey Hawke and Vijay Badrinarayanan and Roberto Cipolla and Alex Kendall},
-  booktitle = {arXiv preprint},
+  booktitle = {Proceedings of the International Conference on Computer Vision ({ICCV})},
   year = {2021}
 }
 ```
