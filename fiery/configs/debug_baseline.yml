@@ -1,4 +1,4 @@
-_BASE_: 'no_filtering_baseline.yml'
+_BASE_: 'baseline.yml'
 
 LOG_DIR: '../experiments/nuscenes/debug'
 TAG: 'debug'

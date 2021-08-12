@@ -1,4 +1,3 @@
-LOG_DIR: '../experiments/nuscenes/single_timeframe'
 TAG: 'single_timeframe_model'
 
 GPUS: [0, 1]

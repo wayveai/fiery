@@ -1,6 +1,8 @@
-_BASE_: '../single_timeframe.yml'
+_BASE_: '../baseline.yml'
 
-TAG: 'fishing_setting_single_timeframe'
+TAG: 'fishing_setting'
+
+BATCHSIZE: 3
 
 DATASET:
   FILTER_INVISIBLE_VEHICLES: False
