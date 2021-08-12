@@ -1,7 +1,7 @@
-LOG_DIR: '../experiments/nuscenes/baseline'
-TAG: 'fiery_4gpus'
+LOG_DIR: '../experiments/nuscenes/kl_weight'
+TAG: 'kl=10.0'
 
-GPUS: [0, 1, 2, 3]
+GPUS: [0, 1]
 
 BATCHSIZE: 3
 PRECISION: 16
@@ -15,6 +15,7 @@ PRETRAINED:
 
 PROBABILISTIC:
   ENABLED: True
+  WEIGHT: 10.0  # remove
 
 MODEL:
   BN_MOMENTUM: 0.05
@@ -28,4 +29,4 @@ INSTANCE_FLOW:
 OPTIMIZER:
   LR: 3e-4
 
-N_WORKERS: 20
+N_WORKERS: 10 #20
