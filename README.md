@@ -76,6 +76,5 @@ To train on single GPU add the flag `GPUS [0]`, and to change the batch size use
 
 ## 🙌 Credits
 Big thanks to Giulio D'Ippolito ([@gdippolito](https://github.com/gdippolito)) for the technical help on the gpu 
-servers, Piotr Sokólski ([@pyetras]
-(https://github.com/pyetras)) for the panoptic metric implementation, and to Hannes Liik ([@hannesliik](https://github.com/hannesliik)) 
+servers, Piotr Sokólski ([@pyetras](https://github.com/pyetras)) for the panoptic metric implementation, and to Hannes Liik ([@hannesliik](https://github.com/hannesliik)) 
 for the awesome future trajectory visualisation on the ground plane.

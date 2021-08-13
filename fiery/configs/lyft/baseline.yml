@@ -1,6 +1,6 @@
 _BASE_: '../baseline.yml'
 
-TAG: 'lyft_baseline_latest'
+TAG: 'lyft_baseline'
 
 GPUS: [0, 1, 2, 3]
 
