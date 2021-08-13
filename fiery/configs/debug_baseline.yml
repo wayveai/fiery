@@ -1,6 +1,5 @@
 _BASE_: 'baseline.yml'
 
-LOG_DIR: '../experiments/nuscenes/debug'
 TAG: 'debug'
 
 EPOCHS: 2

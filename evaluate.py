@@ -93,7 +93,7 @@ def eval(checkpoint_path, dataroot, version):
 if __name__ == '__main__':
     parser = ArgumentParser(description='Fiery evaluation')
     parser.add_argument('--checkpoint', default='./fiery.ckpt', type=str, help='path to checkpoint')
-    parser.add_argument('--dataroot', default='/home/wayve/datasets/nuscenes', type=str, help='path to the dataset')
+    parser.add_argument('--dataroot', default='./nuscenes', type=str, help='path to the dataset')
     parser.add_argument('--version', default='trainval', type=str, choices=['mini', 'trainval'],
                         help='dataset version')
 
