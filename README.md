@@ -75,6 +75,7 @@ To train the model from scratch on NuScenes:
 To train on single GPU add the flag `GPUS [0]`, and to change the batch size use the flag `BATCHSIZE ${DESIRED_BATCHSIZE}`.
 
 ## 🙌 Credits
-Big thanks to Piotr Sokólski ([@pyetras](https://github.com/pyetras)) for the panoptic metric implementation, and to 
-Hannes Liik ([@hannesliik](https://github.com/hannesliik)) for the awesome future trajectory 
-visualisation on the ground plane.
+Big thanks to Giulio D'Ippolito ([@gdippolito](https://github.com/gdippolito)) for the technical help on the gpu 
+servers, Piotr Sokólski ([@pyetras]
+(https://github.com/pyetras)) for the panoptic metric implementation, and to Hannes Liik ([@hannesliik](https://github.com/hannesliik)) 
+for the awesome future trajectory visualisation on the ground plane.
