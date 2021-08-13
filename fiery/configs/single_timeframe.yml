@@ -1,6 +1,6 @@
 TAG: 'single_timeframe_model'
 
-GPUS: [0, 1, 2, 3]
+GPUS: [0, 1]
 
 BATCHSIZE: 8
 
@@ -21,4 +21,4 @@ INSTANCE_FLOW:
 OPTIMIZER:
   LR: 1e-3
 
-N_WORKERS: 20
+N_WORKERS: 10

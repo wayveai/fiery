@@ -2,7 +2,7 @@ _BASE_: '../baseline.yml'
 
 TAG: 'fishing_setting'
 
-BATCHSIZE: 2
+BATCHSIZE: 3
 
 DATASET:
   FILTER_INVISIBLE_VEHICLES: False

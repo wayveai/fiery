@@ -426,7 +426,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return data
 
 
-def prepare_dataloaders(cfg):
+def prepare_dataloaders(cfg, return_dataset=False):
     version = cfg.DATASET.VERSION
     train_on_training_data = True
 
@@ -445,9 +445,9 @@ def prepare_dataloaders(cfg):
     traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
     valdata = FuturePredictionDataset(nusc, False, cfg)
 
-    if version == 'mini':
+    if cfg.DATASET.VERSION == 'mini':
         traindata.indices = traindata.indices[:10]
-        valdata.indices = valdata.indices[30:36]
+        valdata.indices = valdata.indices[:10]
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(
@@ -456,4 +456,7 @@ def prepare_dataloaders(cfg):
     valloader = torch.utils.data.DataLoader(
         valdata, batch_size=cfg.BATCHSIZE, shuffle=False, num_workers=nworkers, pin_memory=True, drop_last=False)
 
-    return trainloader, valloader
+    if return_dataset:
+        return trainloader, valloader, traindata, valdata
+    else:
+        return trainloader, valloader

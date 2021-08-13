@@ -11,7 +11,7 @@ described in:
 [‪Vijay Badrinarayanan](https://sites.google.com/site/vijaybacademichomepage/home), 
 [Roberto Cipolla](https://mi.eng.cam.ac.uk/~cipolla/index.htm) and [Alex Kendall](https://alexgkendall.com/)  
 >
-> [preprint (2021)](https://arxiv.org/abs/2104.10490)<br/>
+> [ICCV 2021 (Oral)](https://arxiv.org/abs/2104.10490)<br/>
 > [Blog post](https://wayve.ai/blog/fiery-future-instance-prediction-birds-eye-view)
 
 <p align="center">
@@ -29,7 +29,7 @@ If you find our work useful, please consider citing:
   title     = {{FIERY}: Future Instance Segmentation in Bird's-Eye view from Surround Monocular Cameras},
   author    = {Anthony Hu and Zak Murez and Nikhil Mohan and Sofía Dudas and 
                Jeffrey Hawke and Vijay Badrinarayanan and Roberto Cipolla and Alex Kendall},
-  booktitle = {arXiv preprint},
+  booktitle = {Proceedings of the International Conference on Computer Vision ({ICCV})},
   year = {2021}
 }
 ```
@@ -57,13 +57,15 @@ them to an `output_vis` folder.
 
 All the configs are in the folder `fiery/configs`
 
-| Config       | Dataset | Past context | Future horizon | BEV size | IoU  | VPQ|
+| Config and weights      | Dataset | Past context | Future horizon | BEV size | IoU  | VPQ|
 |--------------|---------|-----------------------|----------------|----------|------|----|
 | [`baseline.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/fiery.ckpt) | NuScenes | 1.0s | 2.0s | 100mx100m (50cm res.) | 36.7 | 29.9 |
-| [`lyft/baseline.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/lyft_fiery.ckpt) | Lyft | 0.8s | 2.0s | 100mx100m (50cm res.) | 36.3 | 29.2 |
-| [`literature/pon_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/pon_setting.ckpt) | NuScenes| 1.0s | 0.0s | 100mx50m (25cm res.) | 40.0 | - |
-| [`literature/lift_splat_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/lift_splat_setting.ckpt) | NuScenes | 1.0s | 0.0s | 100mx100m (50cm res.) | 37.8 | - |
-| [`literature/fishing_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/fishing_setting.ckpt) | NuScenes | 1.0s | 2.0s | 32.0mx19.2m (10cm res.) | 59.4 | - |
+| [`lyft/baseline.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/lyft_fiery.ckpt) | Lyft | 0.8s | 2.0s| 100mx100m (50cm res.) | 36.3 | 29.2 |
+| [`literature/static_pon_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/static_pon_setting.ckpt) | NuScenes| 0.0s | 0.0s | 100mx50m (25cm res.) | 37.7| - |
+| [`literature/pon_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/pon_setting.ckpt) | NuScenes| 1.0s | 0.0s | 100mx50m (25cm res.) |39.9 | - |
+| [`literature/static_lss_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/static_lift_splat_setting.ckpt) | NuScenes | 0.0s | 0.0s | 100mx100m (50cm res.) | 35.8 | - |
+| [`literature/lift_splat_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/lift_splat_setting.ckpt) | NuScenes | 1.0s | 0.0s | 100mx100m (50cm res.) | 38.2 | - |
+| [`literature/fishing_setting.yml`](https://github.com/wayveai/fiery/releases/download/v1.0/fishing_setting.ckpt) | NuScenes | 1.0s | 2.0s | 32.0mx19.2m (10cm res.) | 57.6 | - |
 
 
 ## 🏊 Training
@@ -73,6 +75,6 @@ To train the model from scratch on NuScenes:
 To train on single GPU add the flag `GPUS [0]`, and to change the batch size use the flag `BATCHSIZE ${DESIRED_BATCHSIZE}`.
 
 ## 🙌 Credits
-Big thanks to Piotr Sokólski ([@pyetras](https://github.com/pyetras)) for the panoptic metric implementation, and to 
-Hannes Liik ([@hannesliik](https://github.com/hannesliik)) for the awesome future trajectory 
-visualisation on the ground plane.
+Big thanks to Giulio D'Ippolito ([@gdippolito](https://github.com/gdippolito)) for the technical help on the gpu 
+servers, Piotr Sokólski ([@pyetras](https://github.com/pyetras)) for the panoptic metric implementation, and to Hannes Liik ([@hannesliik](https://github.com/hannesliik)) 
+for the awesome future trajectory visualisation on the ground plane.

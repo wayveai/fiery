@@ -47,14 +47,14 @@ _C.PRETRAINED.LOAD_WEIGHTS = False
 _C.PRETRAINED.PATH = ''
 
 _C.DATASET = CN()
-_C.DATASET.DATAROOT = './datasets/nuscenes/'
+_C.DATASET.DATAROOT = './nuscenes/'
 _C.DATASET.VERSION = 'trainval'
 _C.DATASET.NAME = 'nuscenes'
 _C.DATASET.IGNORE_INDEX = 255  # Ignore index when creating flow/offset labels
-_C.DATASET.FILTER_INVISIBLE_VEHICLES = True
+_C.DATASET.FILTER_INVISIBLE_VEHICLES = True  # Filter vehicles that are not visible from the cameras
 
 _C.TIME_RECEPTIVE_FIELD = 3  # how many frames of temporal context (1 for single timeframe)
-_C.N_FUTURE_FRAMES = 3  # how many time steps into the future to predict
+_C.N_FUTURE_FRAMES = 4  # how many time steps into the future to predict
 
 _C.IMAGE = CN()
 _C.IMAGE.FINAL_DIM = (224, 480)
@@ -83,7 +83,7 @@ _C.MODEL.TEMPORAL_MODEL.NAME = 'temporal_block'  # type of temporal model
 _C.MODEL.TEMPORAL_MODEL.START_OUT_CHANNELS = 64
 _C.MODEL.TEMPORAL_MODEL.EXTRA_IN_CHANNELS = 0
 _C.MODEL.TEMPORAL_MODEL.INBETWEEN_LAYERS = 0
-_C.MODEL.TEMPORAL_MODEL.PYRAMID_POOLING = False
+_C.MODEL.TEMPORAL_MODEL.PYRAMID_POOLING = True
 _C.MODEL.TEMPORAL_MODEL.INPUT_EGOPOSE = True
 
 _C.MODEL.DISTRIBUTION = CN()

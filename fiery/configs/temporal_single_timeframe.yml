@@ -1,0 +1,14 @@
+_BASE_: 'single_timeframe.yml'
+
+TAG: 'temporal_single_timeframe'
+
+BATCHSIZE: 4
+PRECISION: 16
+
+TIME_RECEPTIVE_FIELD: 3
+
+MODEL:
+  BN_MOMENTUM: 0.05
+  TEMPORAL_MODEL:
+    NAME: 'temporal_block'
+    INPUT_EGOPOSE: True
