@@ -24,7 +24,7 @@ Bottom row: future instance prediction in bird’s-eye view in a 100m×100m capt
 </p>
 
 If you find our work useful, please consider citing:
-```
+```bibtex
 @inproceedings{fiery2021,
   title     = {{FIERY}: Future Instance Segmentation in Bird's-Eye view from Surround Monocular Cameras},
   author    = {Anthony Hu and Zak Murez and Nikhil Mohan and Sofía Dudas and 
