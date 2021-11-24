@@ -31,12 +31,14 @@ CN = CfgNode
 
 _C = CN()
 _C.LOG_DIR = 'tensorboard_logs'
-_C.TAG = 'default'
+_C.EVA_DIR = 'output_dir'
+
+_C.TAG = ''
 
 _C.GPUS = [0]  # which gpus to use
 _C.PRECISION = 32  # 16bit or 32bit
 _C.BATCHSIZE = 3
-_C.EPOCHS = 20
+_C.EPOCHS = 50
 
 _C.N_WORKERS = 5
 _C.VIS_INTERVAL = 5000
@@ -44,10 +46,10 @@ _C.LOGGING_INTERVAL = 500
 
 _C.PRETRAINED = CN()
 _C.PRETRAINED.LOAD_WEIGHTS = False
-_C.PRETRAINED.PATH = ''
+_C.PRETRAINED.PATH = '/home/master/10/cytseng/fiery/tensorboard_logs/21November2021at02:47:53CST_cml26_lift_splat_setting/default/version_0/checkpoints/'+'epoch=21-step=154703.ckpt'
 
 _C.DATASET = CN()
-_C.DATASET.DATAROOT = './nuscenes/'
+_C.DATASET.DATAROOT = '/home/master/10/cytseng/data/sets/nuscenes/'
 _C.DATASET.VERSION = 'trainval'
 _C.DATASET.NAME = 'nuscenes'
 _C.DATASET.IGNORE_INDEX = 255  # Ignore index when creating flow/offset labels
@@ -65,8 +67,8 @@ _C.IMAGE.ORIGINAL_WIDTH = 1600  # Original input RGB camera width
 _C.IMAGE.NAMES = ['CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT']
 
 _C.LIFT = CN()  # image to BEV lifting
-_C.LIFT.X_BOUND = [-50.0, 50.0, 0.5]  # Forward
-_C.LIFT.Y_BOUND = [-50.0, 50.0, 0.5]  # Sides
+_C.LIFT.X_BOUND = [-40.0, 40.0, 0.5]  #  Forward
+_C.LIFT.Y_BOUND = [-40.0, 40.0, 0.5]  # Sides
 _C.LIFT.Z_BOUND = [-10.0, 10.0, 20.0]  # Height
 _C.LIFT.D_BOUND = [2.0, 50.0, 1.0]
 

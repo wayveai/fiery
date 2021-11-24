@@ -53,12 +53,12 @@ def eval(checkpoint_path, dataroot, version):
         labels, future_distribution_inputs = trainer.prepare_future_labels(batch)
 
         with torch.no_grad():
-            # Evaluate with mean prediction
+            # Evaluate with mean prediction
             noise = torch.zeros((batch_size, 1, model.latent_dim), device=device)
             output = model(image, intrinsics, extrinsics, future_egomotion,
                            future_distribution_inputs, noise=noise)
 
-        # Consistent instance seg
+        # Consistent instance seg
         pred_consistent_instance_seg = predict_instance_segmentation_and_trajectories(
             output, compute_matched_centers=False, make_consistent=True
         )

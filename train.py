@@ -16,7 +16,8 @@ def main():
 
     trainloader, valloader = prepare_dataloaders(cfg)
     model = TrainingModule(cfg.convert_to_dict())
-
+    checkpoint_path = '/home/master/10/cytseng/fiery/tensorboard_logs/24November2021at11:16:14CST_cml26_lift_splat_setting/default/version_0/checkpoints/'+'epoch=23-step=165251.ckpt'
+#     model = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
     if cfg.PRETRAINED.LOAD_WEIGHTS:
         # Load single-image instance segmentation model.
         pretrained_model_weights = torch.load(
@@ -39,11 +40,16 @@ def main():
         max_epochs=cfg.EPOCHS,
         weights_summary='full',
         logger=tb_logger,
-        log_every_n_steps=cfg.LOGGING_INTERVAL,
+        # log_every_n_steps=cfg.LOGGING_INTERVAL,
+        val_check_interval=0.25,
+        num_sanity_val_steps=0,
         plugins=DDPPlugin(find_unused_parameters=True),
         profiler='simple',
+        resume_from_checkpoint=checkpoint_path,
     )
+   
     trainer.fit(model, trainloader, valloader)
+#     trainer.fit(model, trainloader, valloader, ckpt_path=checkpoint_path)
 
 
 if __name__ == "__main__":

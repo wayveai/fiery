@@ -5,6 +5,20 @@ import torch
 from pyquaternion import Quaternion
 
 
+def make_grid(grid_size, grid_offset, grid_res):
+    """
+        Constructs an array representing the corners of an orthographic grid 
+        """
+    x_length, y_length = grid_size
+    x_offset, y_offset, z_offset = grid_offset
+
+    xcoords = torch.arange(0., x_length, grid_res) + x_offset
+    ycoords = torch.arange(0., y_length, grid_res) + y_offset
+
+    yy, xx = torch.meshgrid(ycoords, xcoords)
+    return torch.stack([xx, yy, torch.full_like(xx, z_offset)], dim=-1)
+
+
 def resize_and_crop_image(img, resize_dims, crop):
     # Bilinear resizing followed by cropping
     img = img.resize(resize_dims, resample=PIL.Image.BILINEAR)
@@ -172,7 +186,7 @@ def invert_pose_matrix(x):
     transposed_rotation = torch.transpose(x[:, :3, :3], 1, 2)
     translation = x[:, :3, 3:]
 
-    inverse_mat = torch.cat([transposed_rotation, -torch.bmm(transposed_rotation, translation)], dim=-1) # [B,3,4]
+    inverse_mat = torch.cat([transposed_rotation, -torch.bmm(transposed_rotation, translation)], dim=-1)  # [B,3,4]
     inverse_mat = torch.nn.functional.pad(inverse_mat, [0, 0, 0, 1], value=0)  # [B,4,4]
     inverse_mat[..., 3, 3] = 1.0
     return inverse_mat
@@ -269,14 +283,14 @@ def cumulative_warp_features_reverse(x, flow, mode='nearest', spatial_extent=Non
     """
     flow = pose_vec2mat(flow)
 
-    out = [x[:,0]]
-    
+    out = [x[:, 0]]
+
     for i in range(1, x.shape[1]):
-        if i==1:
+        if i == 1:
             cum_flow = invert_pose_matrix(flow[:, 0])
         else:
-            cum_flow = cum_flow @ invert_pose_matrix(flow[:,i-1])
-        out.append( warp_features(x[:,i], mat2pose_vec(cum_flow), mode, spatial_extent=spatial_extent))
+            cum_flow = cum_flow @ invert_pose_matrix(flow[:, i - 1])
+        out.append(warp_features(x[:, i], mat2pose_vec(cum_flow), mode, spatial_extent=spatial_extent))
     return torch.stack(out, 1)
 
 

@@ -133,30 +133,30 @@ def make_color_wheel() -> np.ndarray:
     col += red_yellow
 
     # yellow_green
-    colorwheel[col : col + yellow_green, 0] = 255 - np.transpose(
+    colorwheel[col: col + yellow_green, 0] = 255 - np.transpose(
         np.floor(255 * np.arange(0, yellow_green) / yellow_green)
     )
-    colorwheel[col : col + yellow_green, 1] = 255
+    colorwheel[col: col + yellow_green, 1] = 255
     col += yellow_green
 
     # green_cyan
-    colorwheel[col : col + green_cyan, 1] = 255
-    colorwheel[col : col + green_cyan, 2] = np.transpose(np.floor(255 * np.arange(0, green_cyan) / green_cyan))
+    colorwheel[col: col + green_cyan, 1] = 255
+    colorwheel[col: col + green_cyan, 2] = np.transpose(np.floor(255 * np.arange(0, green_cyan) / green_cyan))
     col += green_cyan
 
     # cyan_blue
-    colorwheel[col : col + cyan_blue, 1] = 255 - np.transpose(np.floor(255 * np.arange(0, cyan_blue) / cyan_blue))
-    colorwheel[col : col + cyan_blue, 2] = 255
+    colorwheel[col: col + cyan_blue, 1] = 255 - np.transpose(np.floor(255 * np.arange(0, cyan_blue) / cyan_blue))
+    colorwheel[col: col + cyan_blue, 2] = 255
     col += cyan_blue
 
     # blue_magenta
-    colorwheel[col : col + blue_magenta, 2] = 255
-    colorwheel[col : col + blue_magenta, 0] = np.transpose(np.floor(255 * np.arange(0, blue_magenta) / blue_magenta))
+    colorwheel[col: col + blue_magenta, 2] = 255
+    colorwheel[col: col + blue_magenta, 0] = np.transpose(np.floor(255 * np.arange(0, blue_magenta) / blue_magenta))
     col += +blue_magenta
 
     # magenta_red
-    colorwheel[col : col + magenta_red, 2] = 255 - np.transpose(np.floor(255 * np.arange(0, magenta_red) / magenta_red))
-    colorwheel[col : col + magenta_red, 0] = 255
+    colorwheel[col: col + magenta_red, 2] = 255 - np.transpose(np.floor(255 * np.arange(0, magenta_red) / magenta_red))
+    colorwheel[col: col + magenta_red, 0] = 255
 
     return colorwheel
 

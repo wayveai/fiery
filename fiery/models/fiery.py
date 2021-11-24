@@ -100,7 +100,7 @@ class Fiery(nn.Module):
         # Decoder
         self.decoder = Decoder(
             in_channels=self.future_pred_in_channels,
-            n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
+            n_classes=1,
             predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
         )
 
@@ -123,7 +123,7 @@ class Fiery(nn.Module):
         y_grid = y_grid.view(1, downsampled_h, 1).expand(n_depth_slices, downsampled_h, downsampled_w)
 
         # Dimension (n_depth_slices, downsampled_h, downsampled_w, 3)
-        # containing data points in the image: left-right, top-bottom, depth
+        # containing data points in the image: left-right, top-bottom, depth
         frustum = torch.stack((x_grid, y_grid, depth_grid), -1)
         return nn.Parameter(frustum, requires_grad=False)
 
@@ -151,7 +151,7 @@ class Fiery(nn.Module):
             future_egomotions_spatial = future_egomotion.view(b, s, c, 1, 1).expand(b, s, c, h, w)
             # at time 0, no egomotion so feed zero vector
             future_egomotions_spatial = torch.cat([torch.zeros_like(future_egomotions_spatial[:, :1]),
-                                                   future_egomotions_spatial[:, :(self.receptive_field-1)]], dim=1)
+                                                   future_egomotions_spatial[:, :(self.receptive_field - 1)]], dim=1)
             x = torch.cat([x, future_egomotions_spatial], dim=-3)
 
         #  Temporal model
@@ -239,21 +239,21 @@ class Fiery(nn.Module):
 
             # Mask out points that are outside the considered spatial extent.
             mask = (
-                    (geometry_b[:, 0] >= 0)
-                    & (geometry_b[:, 0] < self.bev_dimension[0])
-                    & (geometry_b[:, 1] >= 0)
-                    & (geometry_b[:, 1] < self.bev_dimension[1])
-                    & (geometry_b[:, 2] >= 0)
-                    & (geometry_b[:, 2] < self.bev_dimension[2])
+                (geometry_b[:, 0] >= 0)
+                & (geometry_b[:, 0] < self.bev_dimension[0])
+                & (geometry_b[:, 1] >= 0)
+                & (geometry_b[:, 1] < self.bev_dimension[1])
+                & (geometry_b[:, 2] >= 0)
+                & (geometry_b[:, 2] < self.bev_dimension[2])
             )
             x_b = x_b[mask]
             geometry_b = geometry_b[mask]
 
             # Sort tensors so that those within the same voxel are consecutives.
             ranks = (
-                    geometry_b[:, 0] * (self.bev_dimension[1] * self.bev_dimension[2])
-                    + geometry_b[:, 1] * (self.bev_dimension[2])
-                    + geometry_b[:, 2]
+                geometry_b[:, 0] * (self.bev_dimension[1] * self.bev_dimension[2])
+                + geometry_b[:, 1] * (self.bev_dimension[2])
+                + geometry_b[:, 2]
             )
             ranks_indices = ranks.argsort()
             x_b, geometry_b, ranks = x_b[ranks_indices], geometry_b[ranks_indices], ranks[ranks_indices]
@@ -295,6 +295,8 @@ class Fiery(nn.Module):
             noise: a sample from a (0, 1) gaussian with shape (b, s, latent_dim). If None, will sample in function
 
         Returns
+
+        
         -------
             sample: sample taken from present/future distribution, broadcast to shape (b, s, latent_dim, h, w)
             present_distribution_mu: shape (b, s, latent_dim)

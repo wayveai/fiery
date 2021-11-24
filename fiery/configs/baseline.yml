@@ -1,6 +1,6 @@
 TAG: 'baseline'
 
-GPUS: [0, 1, 2, 3]
+GPUS: [0]
 
 BATCHSIZE: 3
 PRECISION: 16
