@@ -1,4 +1,4 @@
-_BASE_: 'lift_splat_setting.yml'
+_BASE_: 'static_lss_setting.yml'
 
 TAG: 'pyramid_occupancy_network_setting'
 
