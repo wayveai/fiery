@@ -27,6 +27,7 @@ from fiery.utils.lyft_splits import TRAIN_LYFT_INDICES, VAL_LYFT_INDICES
 
 from collections import namedtuple
 from fiery.utils.object_encoder import ObjectEncoder
+import random
 general_to_detection = {
     "human.pedestrian.adult": "pedestrian",
     "human.pedestrian.child": "pedestrian",
@@ -236,7 +237,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             np.hstack((lidar_rotation.rotation_matrix, lidar_translation)),
             np.array([0, 0, 0, 1])
         ])
-
+        cam = random.sample(cameras, 1)
         for cam in cameras:
             camera_sample = self.nusc.get('sample_data', rec['data'][cam])
 

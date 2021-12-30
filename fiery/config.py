@@ -33,12 +33,12 @@ _C = CN()
 _C.LOG_DIR = 'tensorboard_logs'
 _C.EVA_DIR = 'output_dir'
 
-_C.TAG = ''
+_C.TAG = 'single_cam'
 
 _C.GPUS = [0]  # which gpus to use
 _C.PRECISION = 32  # 16bit or 32bit
 _C.BATCHSIZE = 3
-_C.EPOCHS = 50
+_C.EPOCHS = 100
 
 _C.N_WORKERS = 5
 _C.VIS_INTERVAL = 5000
@@ -46,7 +46,7 @@ _C.LOGGING_INTERVAL = 500
 
 _C.PRETRAINED = CN()
 _C.PRETRAINED.LOAD_WEIGHTS = False
-_C.PRETRAINED.PATH = '/home/master/10/cytseng/fiery/tensorboard_logs/21November2021at02:47:53CST_cml26_lift_splat_setting/default/version_0/checkpoints/'+'epoch=21-step=154703.ckpt'
+_C.PRETRAINED.PATH = '/home/master/10/cytseng/fiery/tensorboard_logs/21November2021at02:47:53CST_cml26_lift_splat_setting/default/version_0/checkpoints/' + 'epoch=21-step=154703.ckpt'
 
 _C.DATASET = CN()
 _C.DATASET.DATAROOT = '/home/master/10/cytseng/data/sets/nuscenes/'
@@ -65,6 +65,7 @@ _C.IMAGE.TOP_CROP = 46
 _C.IMAGE.ORIGINAL_HEIGHT = 900  # Original input RGB camera height
 _C.IMAGE.ORIGINAL_WIDTH = 1600  # Original input RGB camera width
 _C.IMAGE.NAMES = ['CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT']
+# _C.IMAGE.NAMES = ['CAM_FRONT']
 
 _C.LIFT = CN()  # image to BEV lifting
 _C.LIFT.X_BOUND = [-40.0, 40.0, 0.5]  #  Forward

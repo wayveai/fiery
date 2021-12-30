@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+# import random
 
 from fiery.models.encoder import Encoder
 from fiery.models.temporal_model import TemporalModelIdentity, TemporalModel
@@ -151,7 +152,8 @@ class Fiery(nn.Module):
             future_egomotions_spatial = future_egomotion.view(b, s, c, 1, 1).expand(b, s, c, h, w)
             # at time 0, no egomotion so feed zero vector
             future_egomotions_spatial = torch.cat([torch.zeros_like(future_egomotions_spatial[:, :1]),
-                                                   future_egomotions_spatial[:, :(self.receptive_field - 1)]], dim=1)
+                                                   future_egomotions_spatial[:, :(self.receptive_field - 1)]],
+                                                  dim=1)
             x = torch.cat([x, future_egomotions_spatial], dim=-3)
 
         #  Temporal model
@@ -210,6 +212,9 @@ class Fiery(nn.Module):
 
     def encoder_forward(self, x):
         # batch, n_cameras, channels, height, width
+        # r = random.randint(0, 5)
+        # x = x[:, r, :, :, :].unsqueeze(1)
+        # print("x.shape: ", x.shape)
         b, n, c, h, w = x.shape
 
         x = x.view(b * n, c, h, w)
@@ -296,7 +301,7 @@ class Fiery(nn.Module):
 
         Returns
 
-        
+
         -------
             sample: sample taken from present/future distribution, broadcast to shape (b, s, latent_dim, h, w)
             present_distribution_mu: shape (b, s, latent_dim)
