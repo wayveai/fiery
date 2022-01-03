@@ -110,6 +110,7 @@ class Fiery(nn.Module):
     def create_frustum(self):
         # Create grid in image plane
         h, w = self.cfg.IMAGE.FINAL_DIM
+
         downsampled_h, downsampled_w = h // self.encoder_downsample, w // self.encoder_downsample
 
         # Depth grid
@@ -201,11 +202,15 @@ class Fiery(nn.Module):
         # Add batch, camera dimension, and a dummy dimension at the end
         points = self.frustum.unsqueeze(0).unsqueeze(0).unsqueeze(-1)
 
+        # print("frustum.shape: ", self.frustum.shape)
+        # print("point.shape: ", points.shape)
+        
         # Camera to ego reference frame
         points = torch.cat((points[:, :, :, :, :, :2] * points[:, :, :, :, :, 2:3], points[:, :, :, :, :, 2:3]), 5)
         combined_transformation = rotation.matmul(torch.inverse(intrinsics))
         points = combined_transformation.view(B, N, 1, 1, 1, 3, 3).matmul(points).squeeze(-1)
         points += translation.view(B, N, 1, 1, 1, 3)
+        # print("transform point.shape: ", pointss.shape)
 
         # The 3 dimensions in the ego reference frame are: (forward, sides, height)
         return points
@@ -219,8 +224,11 @@ class Fiery(nn.Module):
 
         x = x.view(b * n, c, h, w)
         x = self.encoder(x)
+        # print("x.shape: ", x.shape)
+
         x = x.view(b, n, *x.shape[1:])
         x = x.permute(0, 1, 3, 4, 5, 2)
+        # print("x.shape: ", x.shape)
 
         return x
 
@@ -231,7 +239,10 @@ class Fiery(nn.Module):
         output = torch.zeros(
             (batch, c, self.bev_dimension[0], self.bev_dimension[1]), dtype=torch.float, device=x.device
         )
-
+        # centers = torch.zeros(
+        #     (batch, c, self.bev_dimension[0] - 1, self.bev_dimension[1] - 1), dtype=torch.float, device=x.device
+        # )
+        # print("geometry.shape: ", geometry.shape)
         # Number of 3D points
         N = n * d * h * w
         for b in range(batch):
@@ -240,7 +251,15 @@ class Fiery(nn.Module):
 
             # Convert positions to integer indices
             geometry_b = ((geometry[b] - (self.bev_start_position - self.bev_resolution / 2.0)) / self.bev_resolution)
+            # print("geometry.shape: ", geometry.shape)
+            # print("geometry: ", geometry)
+            # print("geometry_b[0][0].shape: ", geometry_b[0][0].shape)
+            # print("geometry_b: ", geometry_b[0][0])
+
             geometry_b = geometry_b.view(N, 3).long()
+
+            # print("(self.bev_start_position - self.bev_resolution / 2.0): ",
+            #       (self.bev_start_position - self.bev_resolution / 2.0))
 
             # Mask out points that are outside the considered spatial extent.
             mask = (
@@ -275,6 +294,10 @@ class Fiery(nn.Module):
             bev_feature = bev_feature.squeeze(0)
 
             output[b] = bev_feature
+            # centers[b] = (bev_feature[:, 1:, 1:] + bev_feature[:, :-1, :-1]) / 2.0
+            # print("centers[b].shape: ", centers[b].shape)
+            # print("bev_feature.shape: ", bev_feature.shape)
+            # print("output: ", output)
 
         return output
 

@@ -90,6 +90,8 @@ class ObjectEncoder(object):
 
         # Compute grid centers
         centers = (grid[1:, 1:, :] + grid[:-1, :-1, :]) / 2.
+        # print("center: ", centers)
+        # print("centers.shape: ", centers.shape)
 
         # Transform grid into object coordinate systems
         local_grid = self.rotate(centers - positions.view(-1, 1, 1, 3),

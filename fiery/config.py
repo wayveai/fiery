@@ -33,7 +33,7 @@ _C = CN()
 _C.LOG_DIR = 'tensorboard_logs'
 _C.EVA_DIR = 'output_dir'
 
-_C.TAG = 'single_cam'
+_C.TAG = 'multi_cam'
 
 _C.GPUS = [0]  # which gpus to use
 _C.PRECISION = 32  # 16bit or 32bit
@@ -50,7 +50,7 @@ _C.PRETRAINED.PATH = '/home/master/10/cytseng/fiery/tensorboard_logs/21November2
 
 _C.DATASET = CN()
 _C.DATASET.DATAROOT = '/home/master/10/cytseng/data/sets/nuscenes/'
-_C.DATASET.VERSION = 'trainval'
+_C.DATASET.VERSION = 'v1.0-trainval'
 _C.DATASET.NAME = 'nuscenes'
 _C.DATASET.IGNORE_INDEX = 255  # Ignore index when creating flow/offset labels
 _C.DATASET.FILTER_INVISIBLE_VEHICLES = True  # Filter vehicles that are not visible from the cameras
@@ -66,6 +66,7 @@ _C.IMAGE.ORIGINAL_HEIGHT = 900  # Original input RGB camera height
 _C.IMAGE.ORIGINAL_WIDTH = 1600  # Original input RGB camera width
 _C.IMAGE.NAMES = ['CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT']
 # _C.IMAGE.NAMES = ['CAM_FRONT']
+_C.IMAGE.N_CAMERA = 6
 
 _C.LIFT = CN()  # image to BEV lifting
 _C.LIFT.X_BOUND = [-40.0, 40.0, 0.5]  #  Forward

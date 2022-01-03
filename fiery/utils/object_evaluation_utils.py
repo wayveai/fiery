@@ -139,7 +139,7 @@ def evaluate_json(output_dir, version, dataroot):
 
     cfg = config_factory("detection_cvpr_2019")
     res_path = os.path.join(output_dir, 'detection_result.json')
-    nusc = NuScenes(version='v1.0-{}'.format(version),
+    nusc = NuScenes(version='{}'.format(version),
                     dataroot=os.path.join(dataroot, version),
                     verbose=True)
     nusc_eval = NuScenesEval(

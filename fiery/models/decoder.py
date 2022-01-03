@@ -129,10 +129,10 @@ class Decoder(nn.Module):
         ang_offsets = ang_offsets.view(b, s, self.n_classes, -1, depth, width)
 
         # reshape [batch_size, time_lenght, n_class, feature_dim, depth-1, width-1]
-        score = score[:, :, :, :-1, :-1]
-        pos_offsets = pos_offsets[:, :, :, :, :-1, :-1]
-        dim_offsets = dim_offsets[:, :, :, :, :-1, :-1]
-        ang_offsets = ang_offsets[:, :, :, :, :-1, :-1]
+        # score = score[:, :, :, :-1, :-1]
+        # pos_offsets = pos_offsets[:, :, :, :, :-1, :-1]
+        # dim_offsets = dim_offsets[:, :, :, :, :-1, :-1]
+        # ang_offsets = ang_offsets[:, :, :, :, :-1, :-1]
         # print("score: ", score.shape)
         # print("pos_offsets: ", pos_offsets.shape)
         # print("dim_offsets: ", dim_offsets.shape)

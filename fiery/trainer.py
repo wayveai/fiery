@@ -94,7 +94,7 @@ class TrainingModule(pl.LightningModule):
             # 28130 train and 6019 val
             self.version = cfg.DATASET.VERSION
             self.dataroot = os.path.join(cfg.DATASET.DATAROOT, self.version)
-            self.nusc = NuScenes(version='v1.0-{}'.format(cfg.DATASET.VERSION), dataroot=self.dataroot, verbose=False)
+            self.nusc = NuScenes(version='{}'.format(cfg.DATASET.VERSION), dataroot=self.dataroot, verbose=False)
             self.nusc_annos = {'results': {}, 'meta': None}
 
     def prepare_future_labels(self, batch):
@@ -164,42 +164,6 @@ class TrainingModule(pl.LightningModule):
         gt_dim_offsets = batch['gt_dim_offsets']
         gt_ang_offsets = batch['gt_ang_offsets']
         mask = batch['mask']
-
-        # heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask = gt_encoded
-        # print("heatmaps: ", heatmaps.shape)
-        # print("gt_pos_offsets: ", gt_pos_offsets.shape)
-        # print("gt_dim_offsets: ", gt_dim_offsets.shape)
-        # print("gt_ang_offsets: ", gt_ang_offsets.shape)
-        # print("mask: ", mask.shape)
-        return heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask
-
-    def get_pre_encoded(self, output):
-        score = output['score']
-        pos_offsets = output['pos_offsets']
-        dim_offsets = output['dim_offsets']
-        ang_offsets = output['ang_offsets']
-
-        return score, pos_offsets, dim_offsets, ang_offsets
-
-    def shared_step(self, batch, is_train):
-        image = batch['image']
-        intrinsics = batch['intrinsics']
-        extrinsics = batch['extrinsics']
-        future_egomotion = batch['future_egomotion']
-
-        # print("image: ", image.shape)
-
-        # Warp labels
-        labels, future_distribution_inputs = self.prepare_future_labels(batch)
-        gt_encoded = self.get_gt_encoded(batch)
-        # Forward pass
-        output = self.model(
-            image, intrinsics, extrinsics, future_egomotion, future_distribution_inputs
-        )
-        pre_encoded = self.get_pre_encoded(output)
-
-        heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask = gt_encoded
-
         # Reshape for compute loss
         # b: batch_size, s: time_length
         b, s = heatmaps.shape[:2]
@@ -216,8 +180,18 @@ class TrainingModule(pl.LightningModule):
         # print("gt_ang_offsets: ", gt_ang_offsets.shape)
         # print("mask: ", mask.shape)
 
+        return heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask
+
+    def get_pre_encoded(self, output):
+        score = output['score']
+        pos_offsets = output['pos_offsets']
+        dim_offsets = output['dim_offsets']
+        ang_offsets = output['ang_offsets']
+        # Reshape for compute loss
+        # b: batch_size, s: time_length
+        b, s = score.shape[:2]
+        # print("b, s: ", b, s)
         #  reshape elements in pre_encoded
-        score, pos_offsets, dim_offsets, ang_offsets = pre_encoded
         score = score.view(b * s, *score.shape[2:])
         pos_offsets = pos_offsets.view(b * s, *pos_offsets.shape[2:])
         dim_offsets = dim_offsets.view(b * s, *dim_offsets.shape[2:])
@@ -227,9 +201,26 @@ class TrainingModule(pl.LightningModule):
         # print("dim_offsets: ", dim_offsets.shape)
         # print("ang_offsets: ", ang_offsets.shape)
 
-        # encode new shap
-        gt_encoded = heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask
-        pre_encoded = score, pos_offsets, dim_offsets, ang_offsets
+        return score, pos_offsets, dim_offsets, ang_offsets
+
+    def shared_step(self, batch, is_train):
+        image = batch['image']
+        intrinsics = batch['intrinsics']
+        extrinsics = batch['extrinsics']
+        future_egomotion = batch['future_egomotion']
+
+        # print("image.shape: ", image.shape)
+
+        # Warp labels
+        labels, future_distribution_inputs = self.prepare_future_labels(batch)
+        #####
+        # Forward pass
+        #####
+        output = self.model(
+            image, intrinsics, extrinsics, future_egomotion, future_distribution_inputs
+        )
+        gt_encoded = self.get_gt_encoded(batch)
+        pre_encoded = self.get_pre_encoded(output)
 
         #####
         # Loss computation
@@ -319,9 +310,12 @@ class TrainingModule(pl.LightningModule):
             [self.cfg.LIFT.X_BOUND[0], self.cfg.LIFT.Y_BOUND[0], 1.74],
             self.cfg.LIFT.X_BOUND[2]
         )
+        # print("grid: ", grid)
         # print("grid.shape: ", grid.shape)
+
         grids = grid.unsqueeze(0).repeat(N, 1, 1, 1).cuda()
         # print("grids.shape: ", grids.shape)
+        # print("grids: ", grids)
 
         objects = self.encoder.decode_batch(heatmaps=heatmaps,
                                             pos_offsets=gt_pos_offsets,

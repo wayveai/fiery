@@ -221,7 +221,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         intrinsics = []
         extrinsics = []
         cameras = self.cfg.IMAGE.NAMES
-
+        n_camera = self.cfg.IMAGE.N_CAMERA
         # The extrinsics we want are from the camera sensor to "flat egopose" as defined
         # https://github.com/nutonomy/nuscenes-devkit/blob/9b492f76df22943daf1dc991358d3d606314af27/python-sdk/nuscenes/nuscenes.py#L279
         # which corresponds to the position of the lidar.
@@ -237,8 +237,9 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             np.hstack((lidar_rotation.rotation_matrix, lidar_translation)),
             np.array([0, 0, 0, 1])
         ])
-        cam = random.sample(cameras, 1)
-        for cam in cameras:
+        cams = random.sample(cameras, n_camera)
+        # print("cams: ", cams)
+        for cam in cams:
             camera_sample = self.nusc.get('sample_data', rec['data'][cam])
 
             # Transformation from world to egopose
@@ -366,6 +367,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             cv2.fillPoly(segmentation, [poly_region], 1.0)
             cv2.fillPoly(z_position, [poly_region], z)
             cv2.fillPoly(attribute_label, [poly_region], instance_attribute)
+
             objects.append(
                 ObjectData(
                     classname=general_to_detection[box.name],
@@ -384,6 +386,9 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             [self.cfg.LIFT.X_BOUND[0], self.cfg.LIFT.Y_BOUND[0], 1.74],
             self.cfg.LIFT.X_BOUND[2]
         )
+        # print("grid: ", grid)
+        # print("grid.shape: ", grid.shape)
+
         gt_encoded = self.encoder.encode(objects, grid)
         return gt_encoded
 
@@ -552,7 +557,7 @@ def prepare_dataloaders(cfg, return_dataset=False):
     if cfg.DATASET.NAME == 'nuscenes':
         # 28130 train and 6019 val
         dataroot = os.path.join(cfg.DATASET.DATAROOT, version)
-        nusc = NuScenes(version='v1.0-{}'.format(cfg.DATASET.VERSION), dataroot=dataroot, verbose=False)
+        nusc = NuScenes(version='{}'.format(cfg.DATASET.VERSION), dataroot=dataroot, verbose=False)
     elif cfg.DATASET.NAME == 'lyft':
         # train contains 22680 samples
         # we split in 16506 6174
