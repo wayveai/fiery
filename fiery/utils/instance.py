@@ -129,10 +129,10 @@ def get_instance_segmentation_and_centers(
     centers = find_instance_centers(center_predictions, conf_threshold=conf_threshold, nms_kernel_size=nms_kernel_size)
     if not len(centers):
         return torch.zeros(center_predictions.shape, dtype=torch.int64, device=center_predictions.device), \
-               torch.zeros((0, 2), device=centers.device)
+            torch.zeros((0, 2), device=centers.device)
 
     if len(centers) > max_n_instance_centers:
-        print(f'There are a lot of detected instance centers: {centers.shape}')
+        # print(f'There are a lot of detected instance centers: {centers.shape}')
         centers = centers[:max_n_instance_centers].clone()
 
     instance_ids = group_pixels(centers, offset_predictions)
@@ -328,5 +328,3 @@ def predict_instance_segmentation_and_trajectories(
         return consistent_instance_seg, matched_centers
 
     return consistent_instance_seg
-
-

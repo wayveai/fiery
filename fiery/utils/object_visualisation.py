@@ -1,10 +1,12 @@
 import math
 # from matplotlib import cm
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('agg')
+from matplotlib.patches import Rectangle, Circle
 from matplotlib import transforms
+import matplotlib.pyplot as plt
 # import matplotlib.colors as colors
 # from matplotlib.lines import Line2D
-from matplotlib.patches import Rectangle, Circle
 
 
 def vis_score(score, grid, cmap='cividis', ax=None):

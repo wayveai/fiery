@@ -101,7 +101,8 @@ class Fiery(nn.Module):
         # Decoder
         self.decoder = Decoder(
             in_channels=self.future_pred_in_channels,
-            n_classes=1,
+            n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
+            obj_n_classes=self.cfg.OBJ.N_CLASSES,
             predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
         )
 
@@ -204,7 +205,7 @@ class Fiery(nn.Module):
 
         # print("frustum.shape: ", self.frustum.shape)
         # print("point.shape: ", points.shape)
-        
+
         # Camera to ego reference frame
         points = torch.cat((points[:, :, :, :, :, :2] * points[:, :, :, :, :, 2:3], points[:, :, :, :, :, 2:3]), 5)
         combined_transformation = rotation.matmul(torch.inverse(intrinsics))

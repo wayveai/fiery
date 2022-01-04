@@ -5,7 +5,7 @@ from fiery.layers.convolutions import UpsamplingAdd
 
 
 class Decoder(nn.Module):
-    def __init__(self, in_channels, n_classes, predict_future_flow):
+    def __init__(self, in_channels, n_classes, obj_n_classes, predict_future_flow):
         super().__init__()
         backbone = resnet18(pretrained=False, zero_init_residual=True)
         self.first_conv = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -21,63 +21,67 @@ class Decoder(nn.Module):
         self.up3_skip = UpsamplingAdd(256, 128, scale_factor=2)
         self.up2_skip = UpsamplingAdd(128, 64, scale_factor=2)
         self.up1_skip = UpsamplingAdd(64, shared_out_channels, scale_factor=2)
-
-        # self.segmentation_head = nn.Sequential(
-        #     nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
-        #     nn.BatchNorm2d(shared_out_channels),
-        #     nn.ReLU(inplace=True),
-        #     nn.Conv2d(shared_out_channels, n_classes, kernel_size=1, padding=0),
-        # )
-        # self.instance_offset_head = nn.Sequential(
-        #     nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
-        #     nn.BatchNorm2d(shared_out_channels),
-        #     nn.ReLU(inplace=True),
-        #     nn.Conv2d(shared_out_channels, 2, kernel_size=1, padding=0),
-        # )
-        # self.instance_center_head = nn.Sequential(
-        #     nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
-        #     nn.BatchNorm2d(shared_out_channels),
-        #     nn.ReLU(inplace=True),
-        #     nn.Conv2d(shared_out_channels, 1, kernel_size=1, padding=0),
-        #     nn.Sigmoid(),
-        # )
-
-        # if self.predict_future_flow:
-        #     self.instance_future_head = nn.Sequential(
-        #         nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
-        #         nn.BatchNorm2d(shared_out_channels),
-        #         nn.ReLU(inplace=True),
-        #         nn.Conv2d(shared_out_channels, 2, kernel_size=1, padding=0),
-        #     )
-
-        self.score_head = nn.Sequential(
+        #####
+        # segmentation heads
+        #####
+        self.segmentation_head = nn.Sequential(
             nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(shared_out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(shared_out_channels, n_classes, kernel_size=1, padding=0),
+        )
+        self.instance_offset_head = nn.Sequential(
+            nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(shared_out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(shared_out_channels, 2, kernel_size=1, padding=0),
+        )
+        self.instance_center_head = nn.Sequential(
+            nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(shared_out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(shared_out_channels, 1, kernel_size=1, padding=0),
+            nn.Sigmoid(),
+        )
+
+        if self.predict_future_flow:
+            self.instance_future_head = nn.Sequential(
+                nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
+                nn.BatchNorm2d(shared_out_channels),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(shared_out_channels, 2, kernel_size=1, padding=0),
+            )
+        #####
+        # object detection heads
+        #####
+        self.score_head = nn.Sequential(
+            nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(shared_out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(shared_out_channels, obj_n_classes, kernel_size=1, padding=0),
         )
 
         self.pos_offsets_head = nn.Sequential(
             nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(shared_out_channels),
             nn.ReLU(inplace=True),
-            nn.Conv2d(shared_out_channels, 3 * n_classes, kernel_size=1, padding=0),
+            nn.Conv2d(shared_out_channels, 3 * obj_n_classes, kernel_size=1, padding=0),
         )
 
         self.dim_offsets_head = nn.Sequential(
             nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(shared_out_channels),
             nn.ReLU(inplace=True),
-            nn.Conv2d(shared_out_channels, 3 * n_classes, kernel_size=1, padding=0),
+            nn.Conv2d(shared_out_channels, 3 * obj_n_classes, kernel_size=1, padding=0),
         )
         self.ang_offsets_head = nn.Sequential(
             nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(shared_out_channels),
             nn.ReLU(inplace=True),
-            nn.Conv2d(shared_out_channels, 2 * n_classes, kernel_size=1, padding=0),
+            nn.Conv2d(shared_out_channels, 2 * obj_n_classes, kernel_size=1, padding=0),
         )
 
-        self.n_classes = n_classes
+        self.obj_n_classes = obj_n_classes
 
     def forward(self, x):
         b, s, c, h, w = x.shape
@@ -111,10 +115,11 @@ class Decoder(nn.Module):
 
         depth, width = x.shape[-2:]
         # print("depth, width: ", depth, width)
-        # segmentation_output = self.segmentation_head(x)
-        # instance_center_output = self.instance_center_head(x)
-        # instance_offset_output = self.instance_offset_head(x)
-        # instance_future_output = self.instance_future_head(x) if self.predict_future_flow else None
+        # Segmentation head
+        segmentation_output = self.segmentation_head(x)
+        instance_center_output = self.instance_center_head(x)
+        instance_offset_output = self.instance_offset_head(x)
+        instance_future_output = self.instance_future_head(x) if self.predict_future_flow else None
 
         # Object detection head
         score = self.score_head(x)
@@ -123,26 +128,19 @@ class Decoder(nn.Module):
         ang_offsets = self.ang_offsets_head(x)
 
         # reshape [batch_size, time_lenght, n_class, feature_dim, depth, width]
-        score = score.view(b, s, self.n_classes, depth, width)
-        pos_offsets = pos_offsets.view(b, s, self.n_classes, -1, depth, width)
-        dim_offsets = dim_offsets.view(b, s, self.n_classes, -1, depth, width)
-        ang_offsets = ang_offsets.view(b, s, self.n_classes, -1, depth, width)
-
-        # reshape [batch_size, time_lenght, n_class, feature_dim, depth-1, width-1]
-        # score = score[:, :, :, :-1, :-1]
-        # pos_offsets = pos_offsets[:, :, :, :, :-1, :-1]
-        # dim_offsets = dim_offsets[:, :, :, :, :-1, :-1]
-        # ang_offsets = ang_offsets[:, :, :, :, :-1, :-1]
+        score = score.view(b, s, self.obj_n_classes, depth, width)
+        pos_offsets = pos_offsets.view(b, s, self.obj_n_classes, -1, depth, width)
+        dim_offsets = dim_offsets.view(b, s, self.obj_n_classes, -1, depth, width)
+        ang_offsets = ang_offsets.view(b, s, self.obj_n_classes, -1, depth, width)
         # print("score: ", score.shape)
         # print("pos_offsets: ", pos_offsets.shape)
         # print("dim_offsets: ", dim_offsets.shape)
         # print("ang_offsets: ", ang_offsets.shape)
         return {
-            # 'segmentation': segmentation_output.view(b, s, *segmentation_output.shape[1:]),
-            # 'instance_center': instance_center_output.view(b, s, *instance_center_output.shape[1:]),
-            # 'instance_offset': instance_offset_output.view(b, s, *instance_offset_output.shape[1:]),
-            # 'instance_flow': instance_future_output.view(b, s, *instance_future_output.shape[1:])
-            # if instance_future_output is not None else None,
+            'segmentation': segmentation_output.view(b, s, *segmentation_output.shape[1:]),
+            'instance_center': instance_center_output.view(b, s, *instance_center_output.shape[1:]),
+            'instance_offset': instance_offset_output.view(b, s, *instance_offset_output.shape[1:]),
+            'instance_flow': instance_future_output.view(b, s, *instance_future_output.shape[1:])if instance_future_output is not None else None,
             'score': score,
             'pos_offsets': pos_offsets,
             'dim_offsets': dim_offsets,

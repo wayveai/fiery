@@ -1,5 +1,3 @@
-# from operator import gt
-# from re import S
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -9,11 +7,14 @@ from fiery.models.fiery import Fiery
 from fiery.losses import ProbabilisticLoss, SpatialRegressionLoss, SegmentationLoss
 from fiery.metrics import IntersectionOverUnion, PanopticMetric
 from fiery.utils.geometry import cumulative_warp_features_reverse, make_grid
-# from fiery.utils.instance import predict_instance_segmentation_and_trajectories
-from fiery.utils.object_visualisation import visualize_bev
+from fiery.utils.instance import predict_instance_segmentation_and_trajectories
+from fiery.utils.visualisation import visualise_output
+
 
 from fiery.object_losses import compute_loss
 from fiery.utils.object_encoder import ObjectEncoder
+from fiery.utils.object_visualisation import visualize_bev
+
 from fiery.utils.object_evaluation_utils import (cls_attr_dist, evaluate_json, lidar_egopose_to_world)
 
 from nuscenes.nuscenes import NuScenes
@@ -203,103 +204,8 @@ class TrainingModule(pl.LightningModule):
 
         return score, pos_offsets, dim_offsets, ang_offsets
 
-    def shared_step(self, batch, is_train):
-        image = batch['image']
-        intrinsics = batch['intrinsics']
-        extrinsics = batch['extrinsics']
-        future_egomotion = batch['future_egomotion']
-
-        # print("image.shape: ", image.shape)
-
-        # Warp labels
-        labels, future_distribution_inputs = self.prepare_future_labels(batch)
-        #####
-        # Forward pass
-        #####
-        output = self.model(
-            image, intrinsics, extrinsics, future_egomotion, future_distribution_inputs
-        )
-        gt_encoded = self.get_gt_encoded(batch)
-        pre_encoded = self.get_pre_encoded(output)
-
-        #####
-        # Loss computation
-        #####
-        loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
-        # loss = {}
-        # segmentation_factor = 1 / torch.exp(self.model.segmentation_weight)
-        # loss['segmentation'] = segmentation_factor * self.losses_fn['segmentation'](
-        #     output['segmentation'], labels['segmentation']
-        # )
-        # loss['segmentation_uncertainty'] = 0.5 * self.model.segmentation_weight
-
-        # centerness_factor = 1 / (2 * torch.exp(self.model.centerness_weight))
-        # loss['instance_center'] = centerness_factor * self.losses_fn['instance_center'](
-        #     output['instance_center'], labels['centerness']
-        # )
-
-        # offset_factor = 1 / (2 * torch.exp(self.model.offset_weight))
-        # loss['instance_offset'] = offset_factor * self.losses_fn['instance_offset'](
-        #     output['instance_offset'], labels['offset']
-        # )
-
-        # loss['centerness_uncertainty'] = 0.5 * self.model.centerness_weight
-        # loss['offset_uncertainty'] = 0.5 * self.model.offset_weight
-
-        # if self.cfg.INSTANCE_FLOW.ENABLED:
-        #     flow_factor = 1 / (2 * torch.exp(self.model.flow_weight))
-        #     loss['instance_flow'] = flow_factor * self.losses_fn['instance_flow'](
-        #         output['instance_flow'], labels['flow']
-        #     )
-
-        #     loss['flow_uncertainty'] = 0.5 * self.model.flow_weight
-
-        # if self.cfg.PROBABILISTIC.ENABLED:
-        #     loss['probabilistic'] = self.cfg.PROBABILISTIC.WEIGHT * \
-        #         self.losses_fn['probabilistic'](output)
-
-        # # Metrics
-        # if not is_train:
-        #     seg_prediction = output['segmentation'].detach()
-        #     seg_prediction = torch.argmax(seg_prediction, dim=2, keepdims=True)
-        #     self.metric_iou_val(seg_prediction, labels['segmentation'])
-
-        #     pred_consistent_instance_seg = predict_instance_segmentation_and_trajectories(
-        #         output, compute_matched_centers=False
-        #     )
-
-        #     self.metric_panoptic_val(
-        #         pred_consistent_instance_seg, labels['instance'])
-
-        return pre_encoded, gt_encoded, loss, loss_dict
-
-    # def visualise(self, labels, output, batch_idx, prefix='train'):
-        # visualisation_video = visualise_output(labels, output, self.cfg)
-        # name = f'{prefix}_outputs'
-        # if prefix == 'val':
-        #     name = name + f'_{batch_idx}'
-        # self.logger.experiment.add_video(
-        #     name, visualisation_video, global_step=self.training_step_count, fps=2)
-
-    def training_step(self, batch, batch_idx):
-        pre_encoded, gt_encoded, loss, loss_dict = self.shared_step(batch, True)
-        self.training_step_count += 1
-        # for key, value in loss.items():
-        #     self.logger.experiment.add_scalar(
-        #         key, value, global_step=self.training_step_count)
-        # if self.training_step_count % self.cfg.VIS_INTERVAL == 0:
-        #     self.visualise(labels, output, batch_idx, prefix='train')
-        # return sum(loss.values())
-
-        # Loggers
-        for key, value in loss_dict.items():
-            self.log(f'train_loss/{key}', value)
-        self.log('train_loss', loss)
-        return {'loss': loss, 'log': loss_dict, 'progress_bar': loss_dict}
-
     def get_objects(self, pre_encoded, gt_encoded):
         # Visualzation
-
         heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask = gt_encoded
         score, pos_offsets, dim_offsets, ang_offsets = pre_encoded
 
@@ -332,12 +238,120 @@ class TrainingModule(pl.LightningModule):
 
         return pre_objects, objects, grids
 
+    def shared_step(self, batch, is_train):
+        image = batch['image']
+        intrinsics = batch['intrinsics']
+        extrinsics = batch['extrinsics']
+        future_egomotion = batch['future_egomotion']
+
+        # print("image.shape: ", image.shape)
+
+        # Warp labels
+        labels, future_distribution_inputs = self.prepare_future_labels(batch)
+        #####
+        # Forward pass
+        #####
+        output = self.model(
+            image, intrinsics, extrinsics, future_egomotion, future_distribution_inputs
+        )
+        #####
+        # Encoded label
+        #####
+        gt_encoded = self.get_gt_encoded(batch)
+        pre_encoded = self.get_pre_encoded(output)
+
+        #####
+        # OBJ Loss computation
+        #####
+        loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
+        #####
+        # SEG Loss computation
+        #####
+        seg_loss = {}
+        segmentation_factor = 1 / torch.exp(self.model.segmentation_weight)
+        seg_loss['segmentation'] = segmentation_factor * self.losses_fn['segmentation'](
+            output['segmentation'], labels['segmentation']
+        )
+
+        seg_loss['segmentation_uncertainty'] = 0.5 * self.model.segmentation_weight
+
+        centerness_factor = 1 / (2 * torch.exp(self.model.centerness_weight))
+        seg_loss['instance_center'] = centerness_factor * self.losses_fn['instance_center'](
+            output['instance_center'], labels['centerness']
+        )
+
+        offset_factor = 1 / (2 * torch.exp(self.model.offset_weight))
+        seg_loss['instance_offset'] = offset_factor * self.losses_fn['instance_offset'](
+            output['instance_offset'], labels['offset']
+        )
+
+        seg_loss['centerness_uncertainty'] = 0.5 * self.model.centerness_weight
+        seg_loss['offset_uncertainty'] = 0.5 * self.model.offset_weight
+
+        if self.cfg.INSTANCE_FLOW.ENABLED:
+            flow_factor = 1 / (2 * torch.exp(self.model.flow_weight))
+            seg_loss['instance_flow'] = flow_factor * self.losses_fn['instance_flow'](
+                output['instance_flow'], labels['flow']
+            )
+
+            seg_loss['flow_uncertainty'] = 0.5 * self.model.flow_weight
+
+        if self.cfg.PROBABILISTIC.ENABLED:
+            seg_loss['probabilistic'] = self.cfg.PROBABILISTIC.WEIGHT * \
+                self.losses_fn['probabilistic'](output)
+
+        # Metrics
+        if not is_train:
+            seg_prediction = output['segmentation'].detach()
+            seg_prediction = torch.argmax(seg_prediction, dim=2, keepdims=True)
+            self.metric_iou_val(seg_prediction, labels['segmentation'])
+
+            pred_consistent_instance_seg = predict_instance_segmentation_and_trajectories(
+                output, compute_matched_centers=False
+            )
+
+            self.metric_panoptic_val(
+                pred_consistent_instance_seg, labels['instance'])
+
+        return pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss
+
+    def visualise(self, labels, output, batch_idx, prefix='train'):
+        visualisation_video = visualise_output(labels, output, self.cfg)
+        name = f'{prefix}_outputs'
+        if prefix == 'val':
+            name = name + f'_{batch_idx}'
+        self.logger.experiment.add_video(
+            name, visualisation_video, global_step=self.training_step_count, fps=2)
+
+    def training_step(self, batch, batch_idx):
+        pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, True)
+        self.training_step_count += 1
+
+        for key, value in seg_loss.items():
+            self.logger.experiment.add_scalar(
+                key, value, global_step=self.training_step_count)
+        if self.training_step_count % self.cfg.VIS_INTERVAL == 0:
+            self.visualise(labels, output, batch_idx, prefix='train')
+        # return sum(loss.values())
+
+        # Loggers
+        for key, value in loss_dict.items():
+            self.log(f'train_loss/{key}', value)
+        self.log('train_loss', loss)
+
+        if self.cfg.LOSS.SEG_USE is True:
+            loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
+        else:
+            loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
+
+        return {'loss': loss, 'log': loss_dict, 'progress_bar': loss_dict}
+
     def validation_step(self, batch, batch_idx):
-        pre_encoded, gt_encoded, loss, loss_dict = self.shared_step(batch, False)
-        # for key, value in loss.items():
-        #     self.log('val_' + key, value)
-        # if batch_idx == 0:
-        #     self.visualise(labels, output, batch_idx, prefix='val')
+        pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
+
+        for key, value in seg_loss.items():
+            self.log('val_' + key, value)
+        self.visualise(labels, output, batch_idx, prefix='val')
 
         # Loggers
         for key, value in loss_dict.items():
@@ -361,6 +375,9 @@ class TrainingModule(pl.LightningModule):
         return {'val_loss': loss, 'log': loss_dict, 'progress_bar': loss_dict, 'pred_objects': pre_objects}
 
     def on_validation_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
+        if self.cfg.EVALUATION is False:
+            return
+
         tokens = batch['sample_token']
         tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
         # b, s = tokens.shape[:2]
@@ -433,9 +450,15 @@ class TrainingModule(pl.LightningModule):
             self.nusc_annos['results'].update({token: annos})
 
     def on_validation_epoch_start(self):
+        if self.cfg.EVALUATION is False:
+            return
+
         self.nusc_annos = {'results': {}, 'meta': None}
 
     def on_validation_epoch_end(self) -> None:
+        if self.cfg.EVALUATION is False:
+            return
+
         self.nusc_annos['meta'] = {
             "use_camera": True,
             "use_lidar": False,
@@ -483,10 +506,10 @@ class TrainingModule(pl.LightningModule):
     #                                           global_step=self.training_step_count)
 
     # def training_epoch_end(self, step_outputs):
-        # self.shared_epoch_end(step_outputs, True)
+    #     self.shared_epoch_end(step_outputs, True)
 
-        # def validation_epoch_end(self, step_outputs):
-        # self.shared_epoch_end(step_outputs, False)
+    # def validation_epoch_end(self, step_outputs):
+    #     self.shared_epoch_end(step_outputs, False)
 
     def configure_optimizers(self):
         params = self.model.parameters()
