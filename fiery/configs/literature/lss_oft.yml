@@ -3,9 +3,9 @@ _BASE_: '../single_timeframe.yml'
 TAG: 'lss_oft_multi_cam_mini'
 EVA_DIR: 'output_dir/lss_oft_multi_cam_mini'
 
-GPUS: [1]
+GPUS: [0, 3]
 EPOCHS: 40
-BATCHSIZE: 8
+BATCHSIZE: 4
 N_WORKERS: 6
 EVALUATION: False
 
@@ -17,4 +17,4 @@ IMAGE:
   N_CAMERA: 6
 
 LOSS:
-  SEG_USE: False
+  SEG_USE: True
