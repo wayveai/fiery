@@ -107,6 +107,8 @@ class Fiery(nn.Module):
         )
 
         set_bn_momentum(self, self.cfg.MODEL.BN_MOMENTUM)
+        if self.cfg.LOSS.SEG_USE is True:
+            print("Use segmentation loss to regress.")
 
     def create_frustum(self):
         # Create grid in image plane

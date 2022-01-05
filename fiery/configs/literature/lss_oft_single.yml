@@ -1,7 +1,7 @@
 _BASE_: '../single_timeframe.yml'
 
-TAG: 'lss_oft_single_cam'
-EVA_DIR: 'output_dir/lss_oft_single_cam'
+TAG: 'lss_oft'
+EVA_DIR: 'output_dir/lss_oft'
 
 GPUS: [1]
 EPOCHS: 40

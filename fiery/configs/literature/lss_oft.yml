@@ -1,17 +1,17 @@
 _BASE_: '../single_timeframe.yml'
 
-TAG: 'lss_oft_multi_cam_mini'
-EVA_DIR: 'output_dir/lss_oft_multi_cam_mini'
+TAG: 'lss_oft'
+EVA_DIR: 'output_dir/lss_oft'
 
-GPUS: [0, 3]
+GPUS: [0]
 EPOCHS: 40
-BATCHSIZE: 4
-N_WORKERS: 6
+BATCHSIZE: 10
+N_WORKERS: 4
 EVALUATION: False
 
 DATASET:
   FILTER_INVISIBLE_VEHICLES: False
-  VERSION: 'v1.0-mini'
+  VERSION: 'v1.0-trainval'
 
 IMAGE:
   N_CAMERA: 6

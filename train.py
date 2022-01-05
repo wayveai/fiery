@@ -30,8 +30,13 @@ def main():
     # save_dir = os.path.join(
     #     cfg.LOG_DIR, time.strftime('%d%B%Yat%H:%M:%S%Z') + '_' + socket.gethostname() + '_' + cfg.TAG
     # )
+    if cfg.LOSS.SEG_USE is True:
+        seg_loss_tag = '_segLoss'
+    else:
+        seg_loss_tag = ''
+
     save_dir = os.path.join(
-        cfg.LOG_DIR, cfg.TAG
+        cfg.LOG_DIR, cfg.TAG + '_' + str(cfg.IMAGE.N_CAMERA) + '_cam' + seg_loss_tag
     )
     tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir, name=None)
     trainer = pl.Trainer(
