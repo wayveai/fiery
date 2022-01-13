@@ -30,7 +30,7 @@ def convert_instance_mask_to_center_and_offset_label(instance_img, future_egomot
         warped_instance_seg[t] = warped_inst_t[0, 0]
 
     # Ignore id 0 which is the background
-    for instance_id in range(1, num_instances+1):
+    for instance_id in range(1, num_instances + 1):
         prev_xc = None
         prev_yc = None
         prev_mask = None
@@ -298,8 +298,8 @@ def predict_instance_segmentation_and_trajectories(
         consistent_instance_seg = []
         for b in range(batch_size):
             consistent_instance_seg.append(
-                make_instance_id_temporally_consistent(pred_inst[b:b+1],
-                                                       output['instance_flow'][b:b+1].detach())
+                make_instance_id_temporally_consistent(pred_inst[b: b + 1],
+                                                       output['instance_flow'][b: b + 1].detach())
             )
         consistent_instance_seg = torch.cat(consistent_instance_seg, dim=0)
     else:

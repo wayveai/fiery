@@ -9,9 +9,9 @@ from argparse import ArgumentParser
 
 from fiery.data import prepare_dataloaders
 from fiery.trainer import TrainingModule
-from fiery.metrics import IntersectionOverUnion, PanopticMetric
+# from fiery.metrics import IntersectionOverUnion, PanopticMetric
 from fiery.utils.network import preprocess_batch
-from fiery.utils.instance import predict_instance_segmentation_and_trajectories
+# from fiery.utils.instance import predict_instance_segmentation_and_trajectories
 from fiery.utils.geometry import make_grid
 
 from nuscenes import NuScenes
@@ -289,9 +289,10 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint', default='./fiery.ckpt', type=str, help='path to checkpoint')
     parser.add_argument('--dataroot', default='/home/master/10/cytseng/data/sets/nuscenes/',
                         type=str, help='path to the dataset')
-    parser.add_argument('--version', default='v1.0-trainval', type=str, choices=['v1.0-mini', 'v1.0-trainval'],
+    parser.add_argument('--version', default='v1.0-mini', type=str, choices=['v1.0-mini', 'v1.0-trainval'],
                         help='dataset version')
 
     args = parser.parse_args()
-    ckpt_path = '/home/master/10/cytseng/fiery/tensorboard_logs/lss_oft_multi_cam/version_2/checkpoints/' + 'epoch=0-step=1405.ckpt'
+    ckpt_path = '/home/master/10/cytseng/fiery/tensorboard_logs/lss_oft_6_cam/version_0/' + \
+        'checkpoints/' + 'epoch=36-step=171111.ckpt'
     eval(ckpt_path, args.dataroot, args.version)

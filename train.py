@@ -4,6 +4,7 @@ import os
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from fiery.config import get_parser, get_cfg
 from fiery.data import prepare_dataloaders
@@ -16,7 +17,7 @@ def main():
 
     trainloader, valloader = prepare_dataloaders(cfg)
     model = TrainingModule(cfg.convert_to_dict())
-    # checkpoint_path = '/home/master/10/cytseng/fiery/tensorboard_logs/' + cfg.TAG + '/version_0/checkpoints/' + 'epoch=23-step=165251.ckpt'
+    # checkpoint_path =
 #     model = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
     if cfg.PRETRAINED.LOAD_WEIGHTS:
         # Load single-image instance segmentation model.
@@ -35,10 +36,20 @@ def main():
     else:
         seg_loss_tag = ''
 
+    if cfg.DATASET.VERSION == 'v1.0-mini':
+        dataset_version_tag = '_mini'
+    else:
+        dataset_version_tag = ''
+
     save_dir = os.path.join(
-        cfg.LOG_DIR, cfg.TAG + '_' + str(cfg.IMAGE.N_CAMERA) + '_cam' + seg_loss_tag
+        cfg.LOG_DIR, cfg.TAG + '_' + str(cfg.IMAGE.N_CAMERA) + '_cam' + seg_loss_tag + dataset_version_tag
     )
     tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir, name=None)
+
+    # checkpoint_callback = ModelCheckpoint(
+    #     dirpath=save_dir,
+    # )
+
     trainer = pl.Trainer(
         gpus=cfg.GPUS,
         accelerator='ddp',
@@ -46,18 +57,22 @@ def main():
         sync_batchnorm=True,
         gradient_clip_val=cfg.GRAD_NORM_CLIP,
         max_epochs=cfg.EPOCHS,
-        weights_summary='full',
+        weights_summary=cfg.WEIGHT_SUMMARY,
         logger=tb_logger,
         # log_every_n_steps=cfg.LOGGING_INTERVAL,
-        val_check_interval=0.25,
+        val_check_interval=cfg.VALID_FREQ,
         num_sanity_val_steps=0,
         plugins=DDPPlugin(find_unused_parameters=True),
         profiler='simple',
+
+        # callbacks=checkpoint_callback,
         # resume_from_checkpoint=checkpoint_path,                                                              h,
     )
 
     trainer.fit(model, trainloader, valloader)
 #     trainer.fit(model, trainloader, valloader, ckpt_path=checkpoint_path)
+
+    # trainer.save_checkpoint("final_epoch.ckpt")
 
 
 if __name__ == "__main__":

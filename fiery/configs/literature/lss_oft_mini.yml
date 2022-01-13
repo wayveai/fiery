@@ -1,22 +1,23 @@
 _BASE_: '../single_timeframe.yml'
 
 TAG: 'lss_oft'
-EVA_DIR: 'output_dir/lss_oft'
+EVA_DIR: 'output_dir/lss_oft_mini'
 
-GPUS: [4]
-EPOCHS: 40
+GPUS: [0]
+EPOCHS: 4
 BATCHSIZE: 6
-N_WORKERS: 4
+N_WORKERS: 8
 EVALUATION: False
-VALID_FREQ: 0.5
+VALID_FREQ: 1.0 
 GRAD_NORM_CLIP: 10
 
 DATASET:
   FILTER_INVISIBLE_VEHICLES: False
-  VERSION: 'v1.0-trainval'
+  VERSION: 'v1.0-mini'
 
 IMAGE:
   N_CAMERA: 6
 
 LOSS:
-  SEG_USE: True
+  SEG_USE: False
+

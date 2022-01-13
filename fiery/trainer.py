@@ -375,102 +375,99 @@ class TrainingModule(pl.LightningModule):
         return {'val_loss': loss, 'log': loss_dict, 'progress_bar': loss_dict, 'pred_objects': pre_objects}
 
     def on_validation_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
-        if self.cfg.EVALUATION is False:
-            return
+        if self.cfg.EVALUATION is True:
 
-        tokens = batch['sample_token']
-        tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
-        # b, s = tokens.shape[:2]
-        # tokens = tokens.view(b * s, *tokens.shape[2:])
-        batch_pred_objects = outputs['pred_objects']
-        # print("tokens: ", (tokens))
-        # print("batch_pred_objects.shape: ", len(batch_pred_objects))
+            tokens = batch['sample_token']
+            tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+            # b, s = tokens.shape[:2]
+            # tokens = tokens.view(b * s, *tokens.shape[2:])
+            batch_pred_objects = outputs['pred_objects']
+            # print("tokens: ", (tokens))
+            # print("batch_pred_objects.shape: ", len(batch_pred_objects))
 
-        for pred_objects, token in zip(batch_pred_objects, tokens):
-            annos = []
-            for pred_object in pred_objects:
-                egopose_to_world_trans, egopose_to_world_rot = lidar_egopose_to_world(token, self.nusc)
+            for pred_objects, token in zip(batch_pred_objects, tokens):
+                annos = []
+                for pred_object in pred_objects:
+                    egopose_to_world_trans, egopose_to_world_rot = lidar_egopose_to_world(token, self.nusc)
 
-                # transform from egopose to world -> translation
-                translation = pred_object.position
-                translation = egopose_to_world_rot.rotation_matrix @ translation.numpy()
-                translation += egopose_to_world_trans
+                    # transform from egopose to world -> translation
+                    translation = pred_object.position
+                    translation = egopose_to_world_rot.rotation_matrix @ translation.numpy()
+                    translation += egopose_to_world_trans
 
-                # transform from egopose to world -> rotation
-                rotation = Quaternion(axis=[0, 0, 1], angle=pred_object.angle)
-                rotation = egopose_to_world_rot * rotation
+                    # transform from egopose to world -> rotation
+                    rotation = Quaternion(axis=[0, 0, 1], angle=pred_object.angle)
+                    rotation = egopose_to_world_rot * rotation
 
-                # transform from egopose to world -> velocity
-                velocity = np.array([0.0, 0.0, 0.0])
-                velocity = egopose_to_world_rot.rotation_matrix @ velocity
+                    # transform from egopose to world -> velocity
+                    velocity = np.array([0.0, 0.0, 0.0])
+                    velocity = egopose_to_world_rot.rotation_matrix @ velocity
 
-                size = pred_object.dimensions
-                name = pred_object.classname
-                score = pred_object.score
+                    size = pred_object.dimensions
+                    name = pred_object.classname
+                    score = pred_object.score
 
-                nusc_anno = {
-                    'sample_token': token,
-                    'translation': translation.tolist(),
-                    'size': size.tolist(),
-                    'rotation': rotation.elements.tolist(),
-                    'velocity': [velocity[0], velocity[1]],
-                    'detection_name': name,
-                    'detection_score': score.tolist(),
-                    'attribute_name': max(cls_attr_dist[name].items(),
-                                          key=operator.itemgetter(1))[0],
-                }
-                # align six camera
-                if token in self.nusc_annos['results']:
-                    nms_flag = 0
-                    for all_cam_ann in self.nusc_annos['results'][token]:
-                        if nusc_anno['detection_name'] == all_cam_ann['detection_name']:
-                            translation = nusc_anno['translation']
-                            ref_translation = all_cam_ann['translation']
-                            translation_diff = (translation[0] - ref_translation[0],
-                                                translation[1] - ref_translation[1],
-                                                translation[2] - ref_translation[2])
-                            if nusc_anno['detection_name'] in ['pedestrian']:
-                                nms_dist = 1
-                            else:
-                                nms_dist = 2
-                            if np.linalg.norm(translation_diff[:2]) < nms_dist:
-                                if all_cam_ann['detection_score'] < nusc_anno['detection_score']:
-                                    all_cam_ann = nusc_anno
-                                nms_flag = 1
-                                break
-                    if nms_flag == 0:
+                    nusc_anno = {
+                        'sample_token': token,
+                        'translation': translation.tolist(),
+                        'size': size.tolist(),
+                        'rotation': rotation.elements.tolist(),
+                        'velocity': [velocity[0], velocity[1]],
+                        'detection_name': name,
+                        'detection_score': score.tolist(),
+                        'attribute_name': max(cls_attr_dist[name].items(),
+                                              key=operator.itemgetter(1))[0],
+                    }
+                    # align six camera
+                    if token in self.nusc_annos['results']:
+                        nms_flag = 0
+                        for all_cam_ann in self.nusc_annos['results'][token]:
+                            if nusc_anno['detection_name'] == all_cam_ann['detection_name']:
+                                translation = nusc_anno['translation']
+                                ref_translation = all_cam_ann['translation']
+                                translation_diff = (translation[0] - ref_translation[0],
+                                                    translation[1] - ref_translation[1],
+                                                    translation[2] - ref_translation[2])
+                                if nusc_anno['detection_name'] in ['pedestrian']:
+                                    nms_dist = 1
+                                else:
+                                    nms_dist = 2
+                                if np.linalg.norm(translation_diff[:2]) < nms_dist:
+                                    if all_cam_ann['detection_score'] < nusc_anno['detection_score']:
+                                        all_cam_ann = nusc_anno
+                                    nms_flag = 1
+                                    break
+                        if nms_flag == 0:
+                            annos.append(nusc_anno)
+                    else:
                         annos.append(nusc_anno)
-                else:
-                    annos.append(nusc_anno)
-            max_boxes_per_sample = 450
-            if token in self.nusc_annos['results']:
-                if len(annos) < max_boxes_per_sample:
-                    annos += self.nusc_annos['results'][token]
-                    # print('len(annos): ', len(annos))
-            self.nusc_annos['results'].update({token: annos})
+                max_boxes_per_sample = 450
+                if token in self.nusc_annos['results']:
+                    if len(annos) < max_boxes_per_sample:
+                        annos += self.nusc_annos['results'][token]
+                        # print('len(annos): ', len(annos))
+                self.nusc_annos['results'].update({token: annos})
 
     def on_validation_epoch_start(self):
-        if self.cfg.EVALUATION is False:
-            return
-
-        self.nusc_annos = {'results': {}, 'meta': None}
+        if self.cfg.EVALUATION is True:
+            self.nusc_annos = {'results': {}, 'meta': None}
 
     def on_validation_epoch_end(self) -> None:
-        if self.cfg.EVALUATION is False:
-            return
+        if self.cfg.EVALUATION is True:
+            self.nusc_annos['meta'] = {
+                "use_camera": True,
+                "use_lidar": False,
+                "use_radar": False,
+                "use_map": False,
+                "use_external": False,
+            }
+            print("number of token: ", len(self.nusc_annos["results"]))
+            with open(os.path.join(self.cfg.EVA_DIR, 'detection_result.json'), "w") as f:
+                json.dump(self.nusc_annos, f)
 
-        self.nusc_annos['meta'] = {
-            "use_camera": True,
-            "use_lidar": False,
-            "use_radar": False,
-            "use_map": False,
-            "use_external": False,
-        }
-        print("number of token: ", len(self.nusc_annos["results"]))
-        with open(os.path.join(self.cfg.EVA_DIR, 'detection_result.json'), "w") as f:
-            json.dump(self.nusc_annos, f)
+            evaluate_json(self.cfg.EVA_DIR, self.cfg.DATASET.VERSION, self.cfg.DATASET.DATAROOT)
 
-        evaluate_json(self.cfg.EVA_DIR, self.cfg.DATASET.VERSION, self.cfg.DATASET.DATAROOT)
+        self.trainer.save_checkpoint(self.trainer.log_dir + '/checkpoints' + str(self.trainer.current_epoch) + '.ckpt')
 
     # def shared_epoch_end(self, step_outputs, is_train):
     #     # log per class iou metrics
@@ -513,7 +510,7 @@ class TrainingModule(pl.LightningModule):
 
     def configure_optimizers(self):
         params = self.model.parameters()
-        optimizer = torch.optim.Adam(
+        optimizer = torch.optim.AdamW(
             params, lr=self.cfg.OPTIMIZER.LR, weight_decay=self.cfg.OPTIMIZER.WEIGHT_DECAY
         )
 
