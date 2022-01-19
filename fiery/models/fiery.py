@@ -193,6 +193,8 @@ class Fiery(nn.Module):
             bev_output = self.decoder(future_states)
         else:
             bev_output = self.decoder(states[:, -1:])
+
+        
         output = {**output, **bev_output}
 
         return output

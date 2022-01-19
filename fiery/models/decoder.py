@@ -21,6 +21,7 @@ class Decoder(nn.Module):
         self.up3_skip = UpsamplingAdd(256, 128, scale_factor=2)
         self.up2_skip = UpsamplingAdd(128, 64, scale_factor=2)
         self.up1_skip = UpsamplingAdd(64, shared_out_channels, scale_factor=2)
+
         #####
         # segmentation heads
         #####
@@ -51,6 +52,7 @@ class Decoder(nn.Module):
                 nn.ReLU(inplace=True),
                 nn.Conv2d(shared_out_channels, 2, kernel_size=1, padding=0),
             )
+
         #####
         # object detection heads
         #####
@@ -115,6 +117,7 @@ class Decoder(nn.Module):
 
         depth, width = x.shape[-2:]
         # print("depth, width: ", depth, width)
+        
         # Segmentation head
         segmentation_output = self.segmentation_head(x)
         instance_center_output = self.instance_center_head(x)

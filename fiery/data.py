@@ -152,7 +152,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         # sort by scene, timestamp (only to make chronological viz easier)
         samples.sort(key=lambda x: (x['scene_token'], x['timestamp']))
-
+        print(len(samples))
         return samples
 
     def get_indices(self):
@@ -569,11 +569,14 @@ def prepare_dataloaders(cfg, return_dataset=False):
     traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
     valdata = FuturePredictionDataset(nusc, False, cfg)
 
-    print("valdata.__len__(): ", valdata.__len__())
-
-    # if cfg.DATASET.VERSION == 'mini':
+    # if cfg.DATASET.VERSION == 'v1.0-mini':
     #     traindata.indices = traindata.indices[:10]
     #     valdata.indices = valdata.indices[:10]
+    if cfg.DATASET.VERSION == 'v1.0-trainval' and cfg.DATASET.TRAINING_SAMPLES != -1:
+        traindata.ixes = traindata.ixes[:cfg.DATASET.TRAINING_SAMPLES]
+
+    print("traindata.__len__(): ", traindata.__len__())
+    print("valdata.__len__(): ", valdata.__len__())
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(

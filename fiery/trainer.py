@@ -467,7 +467,8 @@ class TrainingModule(pl.LightningModule):
 
             evaluate_json(self.cfg.EVA_DIR, self.cfg.DATASET.VERSION, self.cfg.DATASET.DATAROOT)
 
-        self.trainer.save_checkpoint(self.trainer.log_dir + '/checkpoints' + str(self.trainer.current_epoch) + '.ckpt')
+        self.trainer.save_checkpoint(os.path.join(self.trainer.log_dir, 'checkpoints',
+                                     f'{self.trainer.current_epoch}.ckpt'))
 
     # def shared_epoch_end(self, step_outputs, is_train):
     #     # log per class iou metrics

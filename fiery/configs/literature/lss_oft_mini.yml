@@ -4,16 +4,18 @@ TAG: 'lss_oft'
 EVA_DIR: 'output_dir/lss_oft_mini'
 
 GPUS: [0]
-EPOCHS: 4
+EPOCHS: 50
 BATCHSIZE: 6
 N_WORKERS: 8
-EVALUATION: False
+EVALUATION: True
 VALID_FREQ: 1.0 
 GRAD_NORM_CLIP: 10
 
 DATASET:
+  DATAROOT: '/home/master/10/cytseng/data/sets/nuscenes/'
   FILTER_INVISIBLE_VEHICLES: False
   VERSION: 'v1.0-mini'
+  TRAINING_SAMPLES: 7000
 
 IMAGE:
   N_CAMERA: 6
