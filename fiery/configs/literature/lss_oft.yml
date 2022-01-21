@@ -16,6 +16,12 @@ DATASET:
   FILTER_INVISIBLE_VEHICLES: False
   VERSION: 'v1.0-trainval'
   TRAINING_SAMPLES: 7000
+
+LIFT:
+  X_BOUND: [-50.0, 50.0, 0.5]  #  Forwards
+  Y_BOUND: [-50.0, 50.0, 0.5]  # Sides
+  Z_BOUND: [-10.0, 10.0, 20.0]  # Height
+
 IMAGE:
   N_CAMERA: 6
 

@@ -150,6 +150,13 @@ _C.OBJ = CN()
 _C.OBJ.N_CLASSES = 1
 
 
+_C.MM = CN()
+_C.MM.POINT_CLOUD_RANGE = [-50, -50, -5, 50, 50, 3]
+
+_C.MM.OBJ = CN()
+# _C.MM.OBJ.BOX_MODE_3D = LIDAR
+
+
 def get_parser():
     parser = argparse.ArgumentParser(description='Fiery training')
     # TODO: remove below?

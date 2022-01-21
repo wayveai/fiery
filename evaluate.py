@@ -293,6 +293,6 @@ if __name__ == '__main__':
                         help='dataset version')
 
     args = parser.parse_args()
-    ckpt_path = '/home/master/10/cytseng/fiery/tensorboard_logs/lss_oft_6_cam/version_0/' + \
-        'checkpoints/' + 'epoch=36-step=171111.ckpt'
+    ckpt_path = '/home/master/10/cytseng/fiery/tensorboard_logs/lss_oft_6_cam_mini/version_9/' + \
+        'checkpoints/' + '1.ckpt'
     eval(ckpt_path, args.dataroot, args.version)

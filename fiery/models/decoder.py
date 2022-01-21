@@ -114,10 +114,10 @@ class Decoder(nn.Module):
 
         # Third upsample to (H, W)
         x = self.up1_skip(x, skip_x['1'])
-
+        print("x.shape: ", x.shape)
         depth, width = x.shape[-2:]
         # print("depth, width: ", depth, width)
-        
+
         # Segmentation head
         segmentation_output = self.segmentation_head(x)
         instance_center_output = self.instance_center_head(x)

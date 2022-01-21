@@ -4,7 +4,7 @@ import os
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.plugins import DDPPlugin
-from pytorch_lightning.callbacks import ModelCheckpoint
+# from pytorch_lightning.callbacks import ModelCheckpoint
 
 from fiery.config import get_parser, get_cfg
 from fiery.data import prepare_dataloaders

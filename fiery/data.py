@@ -1,5 +1,7 @@
 import os
 from PIL import Image
+from matplotlib.cbook import contiguous_regions
+from matplotlib.pyplot import prism
 
 import numpy as np
 import cv2
@@ -28,15 +30,23 @@ from fiery.utils.lyft_splits import TRAIN_LYFT_INDICES, VAL_LYFT_INDICES
 from collections import namedtuple
 from fiery.utils.object_encoder import ObjectEncoder
 import random
+# mmdet3d
+from mmdet3d.core import Box3DMode
+from mmdet3d.core.bbox import (CameraInstance3DBoxes, DepthInstance3DBoxes, LiDARInstance3DBoxes)
+from mmcv.parallel import collate
+from torch.utils.data.dataloader import default_collate
+from functools import partial
+
+
 general_to_detection = {
     "human.pedestrian.adult": "pedestrian",
     "human.pedestrian.child": "pedestrian",
-    "human.pedestrian.wheelchair": "ignore",
-    "human.pedestrian.stroller": "ignore",
-    "human.pedestrian.personal_mobility": "ignore",
+    # "human.pedestrian.wheelchair": "ignore",
+    # "human.pedestrian.stroller": "ignore",
+    # "human.pedestrian.personal_mobility": "ignore",
     "human.pedestrian.police_officer": "pedestrian",
     "human.pedestrian.construction_worker": "pedestrian",
-    "animal": "ignore",
+    # "animal": "ignore",
     "vehicle.car": "car",
     "vehicle.motorcycle": "motorcycle",
     "vehicle.bicycle": "bicycle",
@@ -44,27 +54,27 @@ general_to_detection = {
     "vehicle.bus.rigid": "bus",
     "vehicle.truck": "truck",
     "vehicle.construction": "construction_vehicle",
-    "vehicle.emergency.ambulance": "ignore",
-    "vehicle.emergency.police": "ignore",
+    # "vehicle.emergency.ambulance": "ignore",
+    # "vehicle.emergency.police": "ignore",
     "vehicle.trailer": "trailer",
     "movable_object.barrier": "barrier",
     "movable_object.trafficcone": "traffic_cone",
-    "movable_object.pushable_pullable": "ignore",
-    "movable_object.debris": "ignore",
-    "static_object.bicycle_rack": "ignore",
+    # "movable_object.pushable_pullable": "ignore",
+    # "movable_object.debris": "ignore",
+    # "static_object.bicycle_rack": "ignore",
 }
 NUSCENE_CLASS_NAMES = [
     'car',
     'truck',
-    'bus',
     'trailer',
+    'bus',
     'construction_vehicle',
-    'pedestrian',
-    'motorcycle',
     'bicycle',
+    'motorcycle',
+    'pedestrian',
     'traffic_cone',
     'barrier',
-    "ignore",
+    # "ignore",
 ]
 
 ObjectData = namedtuple(
@@ -306,13 +316,13 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         rot = Quaternion(scalar=np.cos(yaw / 2), vector=[0, 0, np.sin(yaw / 2)]).inverse
         return trans, rot
 
-    def _get_poly_region_in_image(self, instance_annotation, ego_translation, ego_rotation):
+    def _get_poly_region_in_image(self, instance_annotation, ego_translation, ego_rotation, token):
         box = Box(
             instance_annotation['translation'],
             instance_annotation['size'],
             Quaternion(instance_annotation['rotation']),
             name=instance_annotation['category_name'],
-            token=instance_annotation['token'],
+            token=token,
         )
         box.translate(ego_translation)
         box.rotate(ego_rotation)
@@ -334,14 +344,19 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         z_position = np.zeros((self.bev_dimension[0], self.bev_dimension[1]))
         attribute_label = np.zeros((self.bev_dimension[0], self.bev_dimension[1]))
         objects = list()
-
+        boxes = []
         for annotation_token in rec['anns']:
             # Filter out all non vehicle instances
             annotation = self.nusc.get('sample_annotation', annotation_token)
 
             if not self.is_lyft:
                 # NuScenes filter
-                if 'vehicle' not in annotation['category_name']:
+                if self.cfg.LOSS.SEG_USE is True:
+                    if 'vehicle' not in annotation['category_name']:
+                        continue
+                    if self.cfg.DATASET.FILTER_INVISIBLE_VEHICLES and int(annotation['visibility_token']) == 1:
+                        continue
+                if annotation['category_name'] not in general_to_detection:
                     continue
                 if self.cfg.DATASET.FILTER_INVISIBLE_VEHICLES and int(annotation['visibility_token']) == 1:
                     continue
@@ -361,7 +376,9 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
             box, poly_region, z = self._get_poly_region_in_image(annotation,
                                                                  translation,
-                                                                 rotation)
+                                                                 rotation,
+                                                                 rec['token'],
+                                                                 )
 
             cv2.fillPoly(instance, [poly_region], instance_id)
             cv2.fillPoly(segmentation, [poly_region], 1.0)
@@ -378,7 +395,48 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
                     rec=rec['data']['LIDAR_TOP'],
                 )
             )
-        return segmentation, instance, z_position, instance_map, attribute_label, objects
+            boxes.append(box)
+
+        return segmentation, instance, z_position, instance_map, attribute_label, objects, boxes
+
+    def _get_annos(self, boxes):
+        locs = np.array([b.center for b in boxes]).reshape(-1, 3)
+        dims = np.array([b.wlh for b in boxes]).reshape(-1, 3)
+        rots = np.array([b.orientation.yaw_pitch_roll[0] for b in boxes]).reshape(-1, 1)
+
+        gt_bboxes_3d = np.concatenate([locs, dims, -rots - np.pi / 2], axis=1)
+        gt_bboxes_3d = torch.from_numpy(gt_bboxes_3d).float()
+
+        gt_names_3d = [b.name for b in boxes]
+        for i in range(len(gt_names_3d)):
+            if gt_names_3d[i] in general_to_detection:
+                gt_names_3d[i] = general_to_detection[gt_names_3d[i]]
+        # gt_names_3d = np.array(gt_names_3d)
+
+        gt_labels_3d = []
+        for cat in gt_names_3d:
+            if cat in NUSCENE_CLASS_NAMES:
+                gt_labels_3d.append(NUSCENE_CLASS_NAMES.index(cat))
+            else:
+                gt_labels_3d.append(-1)
+        gt_labels_3d = np.array(gt_labels_3d)
+        # gt_labels_3d = torch.from_numpy(gt_labels_3d)
+
+        gt_bboxes_3d = LiDARInstance3DBoxes(
+            gt_bboxes_3d,
+            box_dim=gt_bboxes_3d.shape[-1],
+            origin=(0.5, 0.5, 0.5)).convert_to(Box3DMode.LIDAR)
+
+        anns_results = dict(
+            gt_bboxes_3d=gt_bboxes_3d,
+            gt_labels_3d=gt_labels_3d,
+            gt_names_3d=gt_names_3d)
+
+        # print("gt_bboxes_3d.shape: ", gt_bboxes_3d)
+        # print("gt_labels_3d.shape: ", gt_labels_3d)
+        # print("gt_names_3d.shape: ", gt_names_3d)
+
+        return anns_results
 
     def _get_gt_encoded(self, objects):
         grid = make_grid(
@@ -393,7 +451,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return gt_encoded
 
     def get_label(self, rec, instance_map):
-        segmentation_np, instance_np, z_position_np, instance_map, attribute_label_np, objects = \
+        segmentation_np, instance_np, z_position_np, instance_map, attribute_label_np, objects, boxes = \
             self.get_birds_eye_view_label(rec, instance_map)
 
         segmentation = torch.from_numpy(segmentation_np).long().unsqueeze(0).unsqueeze(0)
@@ -408,14 +466,10 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         gt_dim_offsets = gt_dim_offsets.unsqueeze(0)
         gt_ang_offsets = gt_ang_offsets.unsqueeze(0)
         mask = mask.unsqueeze(0)
-
-        # print("heatmaps: ", heatmaps.shape)
-        # print("gt_pos_offsets: ", gt_pos_offsets.shape)
-        # print("gt_dim_offsets: ", gt_dim_offsets.shape)
-        # print("gt_ang_offsets: ", gt_ang_offsets.shape)
-        # print("mask: ", mask.shape)
         gt_encoded = heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask
-        return segmentation, instance, z_position, instance_map, attribute_label, gt_encoded
+
+        anns_results = self._get_annos(boxes)
+        return segmentation, instance, z_position, instance_map, attribute_label, gt_encoded, anns_results
 
     def get_future_egomotion(self, rec, index):
         rec_t0 = rec
@@ -482,6 +536,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
                 'sample_token',
                 'z_position', 'attribute',
                 'heatmaps', 'gt_pos_offsets', 'gt_dim_offsets', 'gt_ang_offsets', 'mask',
+                'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d',
                 ]
         for key in keys:
             data[key] = []
@@ -494,13 +549,20 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             rec = self.ixes[index]
 
             images, intrinsics, extrinsics = self.get_input_data(rec)
-            segmentation, instance, z_position, instance_map, attribute_label, gt_encoded = \
+            segmentation, instance, z_position, instance_map, attribute_label, gt_encoded, anns_results = \
                 self.get_label(rec, instance_map)
             # Ground true encoded for object detection
             heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask = gt_encoded
 
             # future_egomotion = self.get_future_egomotion(rec, index_t)
             future_egomotion = self.get_future_egomotion(rec, index)
+            # print("anns_results['gt_bboxes_3d']: ", anns_results['gt_bboxes_3d'])
+            # print("anns_results['gt_labels_3d']: ", anns_results['gt_labels_3d'].shape)
+            # print("anns_results['gt_names_3d']: ", anns_results['gt_names_3d'])
+
+            data['gt_bboxes_3d'].append(anns_results['gt_bboxes_3d'])
+            data['gt_labels_3d'].append(anns_results['gt_labels_3d'])
+            data['gt_names_3d'].append(anns_results['gt_names_3d'])
 
             data['heatmaps'].append(heatmaps)
             data['gt_pos_offsets'].append(gt_pos_offsets)
@@ -520,7 +582,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             data['attribute'].append(attribute_label)
 
         for key, value in data.items():
-            if key in ['sample_token', 'centerness', 'offset', 'flow']:
+            if key in ['sample_token', 'centerness', 'offset', 'flow', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', ]:
                 continue
             data[key] = torch.cat(value, dim=0)
 
@@ -550,7 +612,13 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return data
 
 
+def collate_fn(batch):
+    print(batch)
+    return batch
+
+
 def prepare_dataloaders(cfg, return_dataset=False):
+
     version = cfg.DATASET.VERSION
     train_on_training_data = True
 
@@ -580,10 +648,11 @@ def prepare_dataloaders(cfg, return_dataset=False):
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(
-        traindata, batch_size=cfg.BATCHSIZE, shuffle=True, num_workers=nworkers, pin_memory=True, drop_last=True
+        traindata, batch_size=cfg.BATCHSIZE, shuffle=True, collate_fn=collate_fn, num_workers=nworkers, pin_memory=True, drop_last=True
     )
     valloader = torch.utils.data.DataLoader(
-        valdata, batch_size=cfg.BATCHSIZE, shuffle=False, num_workers=nworkers, pin_memory=True, drop_last=False)
+        valdata, batch_size=cfg.BATCHSIZE, shuffle=False, collate_fn=collate_fn, num_workers=nworkers, pin_memory=True, drop_last=False
+    )
 
     if return_dataset:
         return trainloader, valloader, traindata, valdata
