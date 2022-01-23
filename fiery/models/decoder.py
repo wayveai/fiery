@@ -114,7 +114,7 @@ class Decoder(nn.Module):
 
         # Third upsample to (H, W)
         x = self.up1_skip(x, skip_x['1'])
-        print("x.shape: ", x.shape)
+        # print("x.shape: ", x.shape)
         depth, width = x.shape[-2:]
         # print("depth, width: ", depth, width)
 

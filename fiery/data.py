@@ -1,7 +1,5 @@
 import os
 from PIL import Image
-from matplotlib.cbook import contiguous_regions
-from matplotlib.pyplot import prism
 
 import numpy as np
 import cv2
@@ -32,10 +30,8 @@ from fiery.utils.object_encoder import ObjectEncoder
 import random
 # mmdet3d
 from mmdet3d.core import Box3DMode
-from mmdet3d.core.bbox import (CameraInstance3DBoxes, DepthInstance3DBoxes, LiDARInstance3DBoxes)
-from mmcv.parallel import collate
-from torch.utils.data.dataloader import default_collate
-from functools import partial
+from mmdet3d.core.bbox import LiDARInstance3DBoxes
+# from mmdet3d.core.bbox import get_box_type
 
 
 general_to_detection = {
@@ -400,6 +396,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return segmentation, instance, z_position, instance_map, attribute_label, objects, boxes
 
     def _get_annos(self, boxes):
+        # gt_bboxes_3d: [N, 7]
         locs = np.array([b.center for b in boxes]).reshape(-1, 3)
         dims = np.array([b.wlh for b in boxes]).reshape(-1, 3)
         rots = np.array([b.orientation.yaw_pitch_roll[0] for b in boxes]).reshape(-1, 1)
@@ -407,12 +404,19 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         gt_bboxes_3d = np.concatenate([locs, dims, -rots - np.pi / 2], axis=1)
         gt_bboxes_3d = torch.from_numpy(gt_bboxes_3d).float()
 
+        gt_bboxes_3d = LiDARInstance3DBoxes(
+            gt_bboxes_3d,
+            box_dim=gt_bboxes_3d.shape[-1],
+            origin=(0.5, 0.5, 0.5)).convert_to(Box3DMode.LIDAR)
+
+        # gt_names_3d: [N,]
         gt_names_3d = [b.name for b in boxes]
         for i in range(len(gt_names_3d)):
             if gt_names_3d[i] in general_to_detection:
                 gt_names_3d[i] = general_to_detection[gt_names_3d[i]]
         # gt_names_3d = np.array(gt_names_3d)
 
+        # gt_labels_3d: [N,]
         gt_labels_3d = []
         for cat in gt_names_3d:
             if cat in NUSCENE_CLASS_NAMES:
@@ -420,17 +424,20 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             else:
                 gt_labels_3d.append(-1)
         gt_labels_3d = np.array(gt_labels_3d)
-        # gt_labels_3d = torch.from_numpy(gt_labels_3d)
+        gt_labels_3d = torch.from_numpy(gt_labels_3d)
 
-        gt_bboxes_3d = LiDARInstance3DBoxes(
-            gt_bboxes_3d,
-            box_dim=gt_bboxes_3d.shape[-1],
-            origin=(0.5, 0.5, 0.5)).convert_to(Box3DMode.LIDAR)
-
+        # input_metas
+        input_metas = dict(
+            boxes_3d=gt_bboxes_3d,
+            box_mode_3d=Box3DMode.LIDAR,
+            box_type_3d=LiDARInstance3DBoxes,
+        )
         anns_results = dict(
             gt_bboxes_3d=gt_bboxes_3d,
             gt_labels_3d=gt_labels_3d,
-            gt_names_3d=gt_names_3d)
+            gt_names_3d=gt_names_3d,
+            input_metas=input_metas,
+        )
 
         # print("gt_bboxes_3d.shape: ", gt_bboxes_3d)
         # print("gt_labels_3d.shape: ", gt_labels_3d)
@@ -536,7 +543,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
                 'sample_token',
                 'z_position', 'attribute',
                 'heatmaps', 'gt_pos_offsets', 'gt_dim_offsets', 'gt_ang_offsets', 'mask',
-                'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d',
+                'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas',
                 ]
         for key in keys:
             data[key] = []
@@ -563,6 +570,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             data['gt_bboxes_3d'].append(anns_results['gt_bboxes_3d'])
             data['gt_labels_3d'].append(anns_results['gt_labels_3d'])
             data['gt_names_3d'].append(anns_results['gt_names_3d'])
+            data['input_metas'].append(anns_results['input_metas'])
 
             data['heatmaps'].append(heatmaps)
             data['gt_pos_offsets'].append(gt_pos_offsets)
@@ -582,7 +590,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             data['attribute'].append(attribute_label)
 
         for key, value in data.items():
-            if key in ['sample_token', 'centerness', 'offset', 'flow', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', ]:
+            if key in ['sample_token', 'centerness', 'offset', 'flow', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas', ]:
                 continue
             data[key] = torch.cat(value, dim=0)
 
@@ -612,9 +620,30 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return data
 
 
-def collate_fn(batch):
-    print(batch)
-    return batch
+class DeviceDict(dict):
+    def __init__(self, *args):
+        super(DeviceDict, self).__init__(*args)
+
+    def to(self, device):
+        dd = DeviceDict()
+        for k, v in self.items():
+            if torch.is_tensor(v):
+                dd[k] = v.to(device)
+            else:
+                dd[k] = v
+        return dd
+
+
+def collate_helper(elems, key):
+    if key in ['gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas', ]:
+        return elems
+    else:
+        return torch.utils.data.dataloader.default_collate(elems)
+
+
+def mm_collact_fn(batch):
+    elem = batch[0]
+    return DeviceDict({key: collate_helper([d[key] for d in batch], key) for key in elem})
 
 
 def prepare_dataloaders(cfg, return_dataset=False):
@@ -648,10 +677,10 @@ def prepare_dataloaders(cfg, return_dataset=False):
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(
-        traindata, batch_size=cfg.BATCHSIZE, shuffle=True, collate_fn=collate_fn, num_workers=nworkers, pin_memory=True, drop_last=True
+        traindata, batch_size=cfg.BATCHSIZE, shuffle=True, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=True
     )
     valloader = torch.utils.data.DataLoader(
-        valdata, batch_size=cfg.BATCHSIZE, shuffle=False, collate_fn=collate_fn, num_workers=nworkers, pin_memory=True, drop_last=False
+        valdata, batch_size=cfg.BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
     )
 
     if return_dataset:

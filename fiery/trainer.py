@@ -244,7 +244,11 @@ class TrainingModule(pl.LightningModule):
         extrinsics = batch['extrinsics']
         future_egomotion = batch['future_egomotion']
 
-        # print("image.shape: ", image.shape)
+        print("image.shape: ", image.shape)
+        print("batch['gt_bboxes_3d']: ", batch['gt_bboxes_3d'])
+        print("batch['gt_names_3d']: ", batch['gt_names_3d'])
+        print("batch['gt_labels_3d']: ", batch['gt_labels_3d'])
+        print("batch['input_metas']: ", batch['input_metas'])
 
         # Warp labels
         labels, future_distribution_inputs = self.prepare_future_labels(batch)
