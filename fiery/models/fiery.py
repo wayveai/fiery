@@ -10,6 +10,9 @@ from fiery.models.decoder import Decoder
 from fiery.utils.network import pack_sequence_dim, unpack_sequence_dim, set_bn_momentum
 from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_view_parameters, VoxelsSumming
 
+from mmcv import Config
+from mmdet3d.models.dense_heads import Anchor3DHead
+
 
 class Fiery(nn.Module):
     def __init__(self, cfg):
@@ -106,6 +109,62 @@ class Fiery(nn.Module):
             predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
         )
 
+        self.detection_head = Anchor3DHead(
+            **Config(
+                dict(
+                    num_classes=10,
+                    in_channels=64,
+                    feat_channels=64,
+                    use_direction_classifier=True,
+                    anchor_generator=dict(
+                        type='AlignedAnchor3DRangeGenerator',
+                        ranges=[[-50, -50, -1.8, 50, 50, -1.8]],
+                        scales=[1],
+                        sizes=[
+                            [0.8660, 2.5981, 1.],  # 1.5/sqrt(3)
+                            [0.5774, 1.7321, 1.],  # 1/sqrt(3)
+                            [1., 1., 1.],
+                            [0.4, 0.4, 1],
+                        ],
+                        rotations=[0, 1.57],
+                        reshape_out=True),
+                    assigner_per_size=False,
+                    diff_rad_by_sin=True,
+                    dir_offset=0.7854,  # pi/4
+                    dir_limit_offset=0,
+                    bbox_coder=dict(type='DeltaXYZWLHRBBoxCoder'),
+                    loss_cls=dict(
+                        type='FocalLoss',
+                        use_sigmoid=True,
+                        gamma=2.0,
+                        alpha=0.25,
+                        loss_weight=1.0),
+                    loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
+                    loss_dir=dict(
+                        type='CrossEntropyLoss', use_sigmoid=False, loss_weight=0.2),
+                    train_cfg=dict(
+                        assigner=dict(
+                            type='MaxIoUAssigner',
+                            iou_calculator=dict(type='BboxOverlapsNearest3D'),
+                            pos_iou_thr=0.6,
+                            neg_iou_thr=0.3,
+                            min_pos_iou=0.3,
+                            ignore_iof_thr=-1),
+                        allowed_border=0,
+                        pos_weight=-1,
+                        debug=False),
+                    test_cfg=dict(
+                        use_rotate_nms=True,
+                        nms_across_levels=False,
+                        nms_pre=1000,
+                        nms_thr=0.2,
+                        score_thr=0.05,
+                        min_bbox_size=0,
+                        max_num=500),
+                )
+            )
+        )
+
         set_bn_momentum(self, self.cfg.MODEL.BN_MOMENTUM)
         if self.cfg.LOSS.SEG_USE is True:
             print("Use segmentation loss to regress.")
@@ -191,10 +250,12 @@ class Fiery(nn.Module):
         # Predict bird's-eye view outputs
         if self.n_future > 0:
             bev_output = self.decoder(future_states)
+            cls_scores, bbox_preds, dir_cls_preds = self.detection_head(future_states)
         else:
             bev_output = self.decoder(states[:, -1:])
-
-        output = {**output, **bev_output}
+            cls_scores, bbox_preds, dir_cls_preds = self.detection_head([states[:, -1:].flatten(0, 1)])
+        detection_output = dict(cls_scores=cls_scores, bbox_preds=bbox_preds, dir_cls_preds=dir_cls_preds)
+        output = {'detection_output': detection_output, **output, **bev_output}
 
         return output
 

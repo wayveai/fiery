@@ -244,12 +244,6 @@ class TrainingModule(pl.LightningModule):
         extrinsics = batch['extrinsics']
         future_egomotion = batch['future_egomotion']
 
-        print("image.shape: ", image.shape)
-        print("batch['gt_bboxes_3d']: ", batch['gt_bboxes_3d'])
-        print("batch['gt_names_3d']: ", batch['gt_names_3d'])
-        print("batch['gt_labels_3d']: ", batch['gt_labels_3d'])
-        print("batch['input_metas']: ", batch['input_metas'])
-
         # Warp labels
         labels, future_distribution_inputs = self.prepare_future_labels(batch)
         #####
@@ -267,7 +261,18 @@ class TrainingModule(pl.LightningModule):
         #####
         # OBJ Loss computation
         #####
-        loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
+        loss_dict = self.model.detection_head.loss(
+            output['detection_output']['cls_scores'],
+            output['detection_output']['bbox_preds'],
+            output['detection_output']['dir_cls_preds'],
+            gt_bboxes=[item[0] for item in batch['gt_bboxes_3d']],
+            gt_labels=[item[0] for item in batch['gt_labels_3d']],
+            input_metas=[item[0] for item in batch['input_metas']],
+        )
+        loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
+        loss = torch.stack([loss_value for loss_value in loss_dict.values()]).sum()
+        # loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
+
         #####
         # SEG Loss computation
         #####
@@ -341,14 +346,14 @@ class TrainingModule(pl.LightningModule):
         # Loggers
         for key, value in loss_dict.items():
             self.log(f'train_loss/{key}', value)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True)
 
         if self.cfg.LOSS.SEG_USE is True:
             loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
         else:
             loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
 
-        return {'loss': loss, 'log': loss_dict, 'progress_bar': loss_dict}
+        return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
@@ -360,7 +365,7 @@ class TrainingModule(pl.LightningModule):
         # Loggers
         for key, value in loss_dict.items():
             self.log(f'val_loss/{key}', value)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, prog_bar=True)
 
         # Visualzation
         pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
@@ -376,7 +381,7 @@ class TrainingModule(pl.LightningModule):
             global_step=self.global_step
         )
 
-        return {'val_loss': loss, 'log': loss_dict, 'progress_bar': loss_dict, 'pred_objects': pre_objects}
+        return {'val_loss': loss, 'pred_objects': pre_objects}
 
     def on_validation_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
         if self.cfg.EVALUATION is True:
@@ -466,6 +471,7 @@ class TrainingModule(pl.LightningModule):
                 "use_external": False,
             }
             print("number of token: ", len(self.nusc_annos["results"]))
+            os.makedirs(self.cfg.EVA_DIR, exist_ok=True)
             with open(os.path.join(self.cfg.EVA_DIR, 'detection_result.json'), "w") as f:
                 json.dump(self.nusc_annos, f)
 
