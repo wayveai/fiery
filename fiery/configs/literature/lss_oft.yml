@@ -3,11 +3,11 @@ _BASE_: '../single_timeframe.yml'
 TAG: 'lss_oft'
 EVA_DIR: 'output_dir/lss_oft'
 
-GPUS: [0]
+GPUS: [3]
 EPOCHS: 50
 BATCHSIZE: 6
 N_WORKERS: 8
-EVALUATION: False
+EVALUATION: True
 VALID_FREQ: 1.0
 GRAD_NORM_CLIP: 10
 
@@ -26,4 +26,7 @@ IMAGE:
   N_CAMERA: 6
 
 LOSS:
-  SEG_USE: True
+  SEG_USE: False
+
+OBJ:
+  HEAD_NAME: 'mm'

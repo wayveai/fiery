@@ -1,3 +1,8 @@
+import os
+import json
+import operator
+import numpy as np
+
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
@@ -11,18 +16,16 @@ from fiery.utils.instance import predict_instance_segmentation_and_trajectories
 from fiery.utils.visualisation import visualise_output
 
 
-from fiery.object_losses import compute_loss
+# from fiery.object_losses import compute_loss
 from fiery.utils.object_encoder import ObjectEncoder
 from fiery.utils.object_visualisation import visualize_bev
 
 from fiery.utils.object_evaluation_utils import (cls_attr_dist, evaluate_json, lidar_egopose_to_world)
+from fiery.utils.mm_obj_evaluation_utils import mm_bbox3d2result, output_to_nusc_box, lidar_nusc_box_to_global
 
 from nuscenes.nuscenes import NuScenes
-import os
-import json
 from pyquaternion.quaternion import Quaternion
-import numpy as np
-import operator
+from mmdet3d.core import (Box3DMode, Coord3DMode, bbox3d2result)
 
 
 class TrainingModule(pl.LightningModule):
@@ -272,6 +275,11 @@ class TrainingModule(pl.LightningModule):
         loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
         loss = torch.stack([loss_value for loss_value in loss_dict.values()]).sum()
         # loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
+        # print(loss_dict)
+        # print("output['detection_output']['cls_scores']: ", len(output['detection_output']['cls_scores']))
+        # print("output['detection_output']['cls_scores']: ", output['detection_output']['cls_scores'][0].shape)
+        # print("output['detection_output']['bbox_preds']: ", output['detection_output']['bbox_preds'][0].shape)
+        # print("output['detection_output']['dir_cls_preds']: ", output['detection_output']['dir_cls_preds'][0].shape)
 
         #####
         # SEG Loss computation
@@ -335,7 +343,9 @@ class TrainingModule(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, True)
         self.training_step_count += 1
-
+        #####
+        # SEG Loss Logger
+        #####
         for key, value in seg_loss.items():
             self.logger.experiment.add_scalar(
                 key, value, global_step=self.training_step_count)
@@ -343,119 +353,199 @@ class TrainingModule(pl.LightningModule):
             self.visualise(labels, output, batch_idx, prefix='train')
         # return sum(loss.values())
 
-        # Loggers
+        #####
+        # OBJ Loss Logger
+        #####
         for key, value in loss_dict.items():
             self.log(f'train_loss/{key}', value)
-        self.log('train_loss', loss, prog_bar=True)
+        # self.log('train_loss', loss, prog_bar=True)
 
         if self.cfg.LOSS.SEG_USE is True:
             loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
         else:
             loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
 
-        return {'loss': loss}
+        return {'loss': loss, 'loss_dict': loss_dict}
 
     def validation_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
-
+        #####
+        # SEG Loss Logger
+        #####
         for key, value in seg_loss.items():
             self.log('val_' + key, value)
         self.visualise(labels, output, batch_idx, prefix='val')
 
-        # Loggers
+        #####
+        # OBJ Loss Logger
+        #####
         for key, value in loss_dict.items():
             self.log(f'val_loss/{key}', value)
-        self.log('val_loss', loss, prog_bar=True)
+        # self.log('val_loss', loss, prog_bar=True)
 
         # Visualzation
         pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
-        self.logger.experiment.add_figure(
-            'val_visualize_bev',
-            visualize_bev(
-                objects,
-                gt_encoded[0],
-                pre_objects,
-                pre_encoded[0],
-                grids
-            ),
-            global_step=self.global_step
-        )
+        # self.logger.experiment.add_figure(
+        #     'val_visualize_bev',
+        #     visualize_bev(
+        #         objects,
+        #         gt_encoded[0],
+        #         pre_objects,
+        #         pre_encoded[0],
+        #         grids
+        #     ),
+        #     global_step=self.global_step
+        # )
 
-        return {'val_loss': loss, 'pred_objects': pre_objects}
+        # Get MM bbox_list
+        print(loss_dict)
+        bbox_list = self.model.detection_head.get_bboxes(
+            output['detection_output']['cls_scores'],
+            output['detection_output']['bbox_preds'],
+            output['detection_output']['dir_cls_preds'],
+            input_metas=[item[0] for item in batch['input_metas']],
+        )
+        bbox_results = [
+            bbox3d2result(bboxes, scores, labels)
+            for bboxes, scores, labels in bbox_list
+        ]
+        output['bbox_results'] = bbox_results
+        # print("output['bbox_results']: ", output['bbox_results'])
+
+        return {'val_loss': loss, 'pred_objects': pre_objects, 'bbox_results': bbox_results}
+
+    def mm_obj_evaluation(self, tokens, detections):
+        print("len(detections) = batch size: ", len(detections))
+        # print("detections: ", (detections))
+        for detection, token in zip(detections, tokens):
+            annos = []
+            # print("detection: ", (detection))
+            boxes = output_to_nusc_box(detection, token)
+            # print("boxes: ", (boxes))
+
+            for box in boxes:
+                egopose_to_world_trans, egopose_to_world_rot = lidar_egopose_to_world(token, self.nusc)
+
+                # transform from egopose to world
+                box.rotate(Quaternion(egopose_to_world_rot))
+                box.translate(np.array(egopose_to_world_trans))
+
+                nusc_anno = {
+                    'sample_token': box.token,
+                    'translation': box.center.tolist(),
+                    'size': box.wlh.tolist(),
+                    'rotation': box.orientation.elements.tolist(),
+                    'velocity': box.velocity[:2].tolist(),
+                    'detection_name': box.name,
+                    'detection_score': box.score,
+                    'attribute_name': max(cls_attr_dist[box.name].items(),
+                                          key=operator.itemgetter(1))[0],
+                }
+                # align six camera
+                if token in self.nusc_annos['results']:
+                    nms_flag = 0
+                    for all_cam_ann in self.nusc_annos['results'][token]:
+                        if nusc_anno['detection_name'] == all_cam_ann['detection_name']:
+                            translation = nusc_anno['translation']
+                            ref_translation = all_cam_ann['translation']
+                            translation_diff = (translation[0] - ref_translation[0],
+                                                translation[1] - ref_translation[1],
+                                                translation[2] - ref_translation[2])
+                            if nusc_anno['detection_name'] in ['pedestrian']:
+                                nms_dist = 1
+                            else:
+                                nms_dist = 2
+                            if np.linalg.norm(translation_diff[:2]) < nms_dist:
+                                if all_cam_ann['detection_score'] < nusc_anno['detection_score']:
+                                    all_cam_ann = nusc_anno
+                                nms_flag = 1
+                                break
+                    if nms_flag == 0:
+                        annos.append(nusc_anno)
+                else:
+                    annos.append(nusc_anno)
+
+            max_boxes_per_sample = 450
+            if token in self.nusc_annos['results']:
+                if len(annos) < max_boxes_per_sample:
+                    annos += self.nusc_annos['results'][token]
+                    # print('len(annos): ', len(annos))
+            self.nusc_annos['results'].update({token: annos})
+
+    def oft_obj_evaluation(self, tokens, batch_pred_objects):
+        for pred_objects, token in zip(batch_pred_objects, tokens):
+            annos = []
+            for pred_object in pred_objects:
+                egopose_to_world_trans, egopose_to_world_rot = lidar_egopose_to_world(token, self.nusc)
+
+                # transform from egopose to world -> translation
+                translation = pred_object.position
+                translation = egopose_to_world_rot.rotation_matrix @ translation.numpy()
+                translation += egopose_to_world_trans
+
+                # transform from egopose to world -> rotation
+                rotation = Quaternion(axis=[0, 0, 1], angle=pred_object.angle)
+                rotation = egopose_to_world_rot * rotation
+
+                # transform from egopose to world -> velocity
+                velocity = np.array([0.0, 0.0, 0.0])
+                velocity = egopose_to_world_rot.rotation_matrix @ velocity
+
+                size = pred_object.dimensions
+                name = pred_object.classname
+                score = pred_object.score
+
+                nusc_anno = {
+                    'sample_token': token,
+                    'translation': translation.tolist(),
+                    'size': size.tolist(),
+                    'rotation': rotation.elements.tolist(),
+                    'velocity': [velocity[0], velocity[1]],
+                    'detection_name': name,
+                    'detection_score': score.tolist(),
+                    'attribute_name': max(cls_attr_dist[name].items(),
+                                          key=operator.itemgetter(1))[0],
+                }
+                # align six camera
+                if token in self.nusc_annos['results']:
+                    nms_flag = 0
+                    for all_cam_ann in self.nusc_annos['results'][token]:
+                        if nusc_anno['detection_name'] == all_cam_ann['detection_name']:
+                            translation = nusc_anno['translation']
+                            ref_translation = all_cam_ann['translation']
+                            translation_diff = (translation[0] - ref_translation[0],
+                                                translation[1] - ref_translation[1],
+                                                translation[2] - ref_translation[2])
+                            if nusc_anno['detection_name'] in ['pedestrian']:
+                                nms_dist = 1
+                            else:
+                                nms_dist = 2
+                            if np.linalg.norm(translation_diff[:2]) < nms_dist:
+                                if all_cam_ann['detection_score'] < nusc_anno['detection_score']:
+                                    all_cam_ann = nusc_anno
+                                nms_flag = 1
+                                break
+                    if nms_flag == 0:
+                        annos.append(nusc_anno)
+                else:
+                    annos.append(nusc_anno)
+            max_boxes_per_sample = 450
+            if token in self.nusc_annos['results']:
+                if len(annos) < max_boxes_per_sample:
+                    annos += self.nusc_annos['results'][token]
+                    # print('len(annos): ', len(annos))
+            self.nusc_annos['results'].update({token: annos})
 
     def on_validation_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
         if self.cfg.EVALUATION is True:
-
             tokens = batch['sample_token']
             tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
-            # b, s = tokens.shape[:2]
-            # tokens = tokens.view(b * s, *tokens.shape[2:])
-            batch_pred_objects = outputs['pred_objects']
-            # print("tokens: ", (tokens))
-            # print("batch_pred_objects.shape: ", len(batch_pred_objects))
+            if self.cfg.OBJ.HEAD_NAME == 'oft':
+                batch_pred_objects = outputs['pred_objects']
+                self.oft_obj_evaluation(tokens, batch_pred_objects)
 
-            for pred_objects, token in zip(batch_pred_objects, tokens):
-                annos = []
-                for pred_object in pred_objects:
-                    egopose_to_world_trans, egopose_to_world_rot = lidar_egopose_to_world(token, self.nusc)
-
-                    # transform from egopose to world -> translation
-                    translation = pred_object.position
-                    translation = egopose_to_world_rot.rotation_matrix @ translation.numpy()
-                    translation += egopose_to_world_trans
-
-                    # transform from egopose to world -> rotation
-                    rotation = Quaternion(axis=[0, 0, 1], angle=pred_object.angle)
-                    rotation = egopose_to_world_rot * rotation
-
-                    # transform from egopose to world -> velocity
-                    velocity = np.array([0.0, 0.0, 0.0])
-                    velocity = egopose_to_world_rot.rotation_matrix @ velocity
-
-                    size = pred_object.dimensions
-                    name = pred_object.classname
-                    score = pred_object.score
-
-                    nusc_anno = {
-                        'sample_token': token,
-                        'translation': translation.tolist(),
-                        'size': size.tolist(),
-                        'rotation': rotation.elements.tolist(),
-                        'velocity': [velocity[0], velocity[1]],
-                        'detection_name': name,
-                        'detection_score': score.tolist(),
-                        'attribute_name': max(cls_attr_dist[name].items(),
-                                              key=operator.itemgetter(1))[0],
-                    }
-                    # align six camera
-                    if token in self.nusc_annos['results']:
-                        nms_flag = 0
-                        for all_cam_ann in self.nusc_annos['results'][token]:
-                            if nusc_anno['detection_name'] == all_cam_ann['detection_name']:
-                                translation = nusc_anno['translation']
-                                ref_translation = all_cam_ann['translation']
-                                translation_diff = (translation[0] - ref_translation[0],
-                                                    translation[1] - ref_translation[1],
-                                                    translation[2] - ref_translation[2])
-                                if nusc_anno['detection_name'] in ['pedestrian']:
-                                    nms_dist = 1
-                                else:
-                                    nms_dist = 2
-                                if np.linalg.norm(translation_diff[:2]) < nms_dist:
-                                    if all_cam_ann['detection_score'] < nusc_anno['detection_score']:
-                                        all_cam_ann = nusc_anno
-                                    nms_flag = 1
-                                    break
-                        if nms_flag == 0:
-                            annos.append(nusc_anno)
-                    else:
-                        annos.append(nusc_anno)
-                max_boxes_per_sample = 450
-                if token in self.nusc_annos['results']:
-                    if len(annos) < max_boxes_per_sample:
-                        annos += self.nusc_annos['results'][token]
-                        # print('len(annos): ', len(annos))
-                self.nusc_annos['results'].update({token: annos})
+            elif self.cfg.OBJ.HEAD_NAME == 'mm':
+                self.mm_obj_evaluation(tokens, outputs['bbox_results'])
 
     def on_validation_epoch_start(self):
         if self.cfg.EVALUATION is True:
@@ -471,7 +561,9 @@ class TrainingModule(pl.LightningModule):
                 "use_external": False,
             }
             print("number of token: ", len(self.nusc_annos["results"]))
+
             os.makedirs(self.cfg.EVA_DIR, exist_ok=True)
+
             with open(os.path.join(self.cfg.EVA_DIR, 'detection_result.json'), "w") as f:
                 json.dump(self.nusc_annos, f)
 

@@ -254,7 +254,9 @@ class Fiery(nn.Module):
         else:
             bev_output = self.decoder(states[:, -1:])
             cls_scores, bbox_preds, dir_cls_preds = self.detection_head([states[:, -1:].flatten(0, 1)])
+
         detection_output = dict(cls_scores=cls_scores, bbox_preds=bbox_preds, dir_cls_preds=dir_cls_preds)
+
         output = {'detection_output': detection_output, **output, **bev_output}
 
         return output

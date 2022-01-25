@@ -142,7 +142,7 @@ int nms_gpu(at::Tensor boxes, at::Tensor keep,
     }
   }
   delete[] remv_cpu;
-  if (cudaSuccess != cudaGetLastError()) printf("Error!\n");
+  if (cudaSuccess != cudaGetLastError()) printf("Error 1!\n");
 
   return num_to_keep;
 }
@@ -196,7 +196,7 @@ int nms_normal_gpu(at::Tensor boxes, at::Tensor keep,
     }
   }
   delete[] remv_cpu;
-  if (cudaSuccess != cudaGetLastError()) printf("Error!\n");
+  if (cudaSuccess != cudaGetLastError()) printf("Error 2!\n");
 
   return num_to_keep;
 }

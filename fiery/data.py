@@ -439,10 +439,6 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             input_metas=input_metas,
         )
 
-        # print("gt_bboxes_3d.shape: ", gt_bboxes_3d)
-        # print("gt_labels_3d.shape: ", gt_labels_3d)
-        # print("gt_names_3d.shape: ", gt_names_3d)
-
         return anns_results
 
     def _get_gt_encoded(self, objects):
@@ -451,8 +447,6 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             [self.cfg.LIFT.X_BOUND[0], self.cfg.LIFT.Y_BOUND[0], 1.74],
             self.cfg.LIFT.X_BOUND[2]
         )
-        # print("grid: ", grid)
-        # print("grid.shape: ", grid.shape)
 
         gt_encoded = self.encoder.encode(objects, grid)
         return gt_encoded

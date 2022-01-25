@@ -265,6 +265,9 @@ def eval(checkpoint_path, dataroot, version):
         "use_external": False,
     }
     print("number of token: ", len(nusc_annos["results"]))
+
+    os.makedirs(cfg.EVA_DIR, exist_ok=True)
+
     with open(os.path.join(cfg.EVA_DIR, 'detection_result.json'), "w") as f:
         json.dump(nusc_annos, f)
 
@@ -293,6 +296,6 @@ if __name__ == '__main__':
                         help='dataset version')
 
     args = parser.parse_args()
-    ckpt_path = '/home/master/10/cytseng/fiery/tensorboard_logs/lss_oft_6_cam_mini/version_9/' + \
+    ckpt_path = '/home/master/10/cytseng/fiery/tensorboard_logs/lss_oft_6_cam_mini/version_75/' + \
         'checkpoints/' + '1.ckpt'
     eval(ckpt_path, args.dataroot, args.version)

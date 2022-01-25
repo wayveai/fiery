@@ -28,3 +28,5 @@ IMAGE:
 LOSS:
   SEG_USE: False
 
+OBJ:
+  HEAD_NAME: 'mm'
