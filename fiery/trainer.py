@@ -338,16 +338,20 @@ class TrainingModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, True)
-        self.training_step_count += 1
-        #####
-        # SEG Loss Logger
-        #####
-        for key, value in seg_loss.items():
-            self.logger.experiment.add_scalar(
-                key, value, global_step=self.training_step_count)
-        if self.training_step_count % self.cfg.VIS_INTERVAL == 0:
-            self.visualise(labels, output, batch_idx, prefix='train')
-        # return sum(loss.values())
+
+        if self.cfg.LOSS.SEG_USE is True:
+            #####
+            # SEG Loss Logger
+            #####
+            for key, value in seg_loss.items():
+                self.logger.experiment.add_scalar(
+                    'train_seg_loss/' + key, value, global_step=self.global_step)
+            if self.training_step_count % self.cfg.VIS_INTERVAL == 0:
+                self.visualise(labels, output, batch_idx, prefix='train')
+
+            loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
+        else:
+            loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
 
         #####
         # OBJ Loss Logger
@@ -356,21 +360,19 @@ class TrainingModule(pl.LightningModule):
             self.log(f'train_loss/{key}', value)
         # self.log('train_loss', loss, prog_bar=True)
 
-        if self.cfg.LOSS.SEG_USE is True:
-            loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
-        else:
-            loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
-
         return {'loss': loss, 'loss_dict': loss_dict}
 
     def validation_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
-        #####
-        # SEG Loss Logger
-        #####
-        for key, value in seg_loss.items():
-            self.log('val_' + key, value)
-        self.visualise(labels, output, batch_idx, prefix='val')
+
+        if self.cfg.LOSS.SEG_USE is True:
+            #####
+            # SEG Loss Logger
+            #####
+            for key, value in seg_loss.items():
+                self.logger.experiment.add_scalar(
+                    'val_seg_loss/' + key, value, global_step=self.global_step)
+            self.visualise(labels, output, batch_idx, prefix='val')
 
         #####
         # OBJ Loss Logger
@@ -395,11 +397,36 @@ class TrainingModule(pl.LightningModule):
             )
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
             pre_objects = None
+            tokens = batch['sample_token']
+            tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+
+            pred_bboxes_list = self.model.detection_head.get_bboxes(
+                output['detection_output']['cls_scores'],
+                output['detection_output']['bbox_preds'],
+                output['detection_output']['dir_cls_preds'],
+                [item[0] for item in batch['input_metas']],
+            )
+            pred_bboxes_list = [
+                bbox3d2result(bboxes, scores, labels)
+                for bboxes, scores, labels in pred_bboxes_list
+            ]
+            for detection, token in zip(pred_bboxes_list, tokens):
+                pred_boxes = output_to_nusc_box(detection, token)
+                # print("pred_boxes: ", pred_boxes)
+
+                self.logger.experiment.add_figure(
+                    'mm_val_visualize_bev',
+                    visualize_sample(
+                        nusc=self.nusc,
+                        sample_token=token,
+                        pred_boxes=pred_boxes,
+                    ),
+                    global_step=self.global_step
+                )
+
         return {'val_loss': loss, 'loss_dict': loss_dict, 'pred_objects': pre_objects, 'output': output}
 
     def mm_obj_evaluation(self, tokens, detections):
-        # print("len(detections) = batch size: ", len(detections))
-        # print("detections: ", (detections))
         for detection, token in zip(detections, tokens):
             annos = []
             # print("detection: ", (detection))
@@ -616,8 +643,13 @@ class TrainingModule(pl.LightningModule):
 
     def configure_optimizers(self):
         params = self.model.parameters()
-        optimizer = torch.optim.AdamW(
-            params, lr=self.cfg.OPTIMIZER.LR, weight_decay=self.cfg.OPTIMIZER.WEIGHT_DECAY
-        )
+        if self.cfg.OPTIMIZER.NAME == 'AdamW':
+            optimizer = torch.optim.AdamW(
+                params, lr=self.cfg.OPTIMIZER.LR, weight_decay=self.cfg.OPTIMIZER.WEIGHT_DECAY
+            )
+        elif self.cfg.OPTIMIZER.NAME == 'Adam':
+            optimizer = torch.optim.Adam(
+                params, lr=self.cfg.OPTIMIZER.LR, weight_decay=self.cfg.OPTIMIZER.WEIGHT_DECAY
+            )
 
         return optimizer
