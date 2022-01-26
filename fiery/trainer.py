@@ -19,6 +19,7 @@ from fiery.utils.visualisation import visualise_output
 # from fiery.object_losses import compute_loss
 from fiery.utils.object_encoder import ObjectEncoder
 from fiery.utils.object_visualisation import visualize_bev
+from fiery.utils.nuscenes_visualization import visualize_sample
 
 from fiery.utils.object_evaluation_utils import (cls_attr_dist, evaluate_json, lidar_egopose_to_world)
 from fiery.utils.mm_obj_evaluation_utils import mm_bbox3d2result, output_to_nusc_box, lidar_nusc_box_to_global
@@ -275,11 +276,6 @@ class TrainingModule(pl.LightningModule):
         loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
         loss = torch.stack([loss_value for loss_value in loss_dict.values()]).sum()
         # loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
-        # print(loss_dict)
-        # print("output['detection_output']['cls_scores']: ", len(output['detection_output']['cls_scores']))
-        # print("output['detection_output']['cls_scores']: ", output['detection_output']['cls_scores'][0].shape)
-        # print("output['detection_output']['bbox_preds']: ", output['detection_output']['bbox_preds'][0].shape)
-        # print("output['detection_output']['dir_cls_preds']: ", output['detection_output']['dir_cls_preds'][0].shape)
 
         #####
         # SEG Loss computation
@@ -384,61 +380,56 @@ class TrainingModule(pl.LightningModule):
         # self.log('val_loss', loss, prog_bar=True)
 
         # Visualzation
-        pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
-        # self.logger.experiment.add_figure(
-        #     'val_visualize_bev',
-        #     visualize_bev(
-        #         objects,
-        #         gt_encoded[0],
-        #         pre_objects,
-        #         pre_encoded[0],
-        #         grids
-        #     ),
-        #     global_step=self.global_step
-        # )
-
-        # Get MM bbox_list
-        print(loss_dict)
-        bbox_list = self.model.detection_head.get_bboxes(
-            output['detection_output']['cls_scores'],
-            output['detection_output']['bbox_preds'],
-            output['detection_output']['dir_cls_preds'],
-            input_metas=[item[0] for item in batch['input_metas']],
-        )
-        bbox_results = [
-            bbox3d2result(bboxes, scores, labels)
-            for bboxes, scores, labels in bbox_list
-        ]
-        output['bbox_results'] = bbox_results
-        # print("output['bbox_results']: ", output['bbox_results'])
-
-        return {'val_loss': loss, 'pred_objects': pre_objects, 'bbox_results': bbox_results}
+        if self.cfg.OBJ.HEAD_NAME == 'oft':
+            pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
+            self.logger.experiment.add_figure(
+                'oft_val_visualize_bev',
+                visualize_bev(
+                    objects,
+                    gt_encoded[0],
+                    pre_objects,
+                    pre_encoded[0],
+                    grids
+                ),
+                global_step=self.global_step
+            )
+        elif self.cfg.OBJ.HEAD_NAME == 'mm':
+            pre_objects = None
+        return {'val_loss': loss, 'loss_dict': loss_dict, 'pred_objects': pre_objects, 'output': output}
 
     def mm_obj_evaluation(self, tokens, detections):
-        print("len(detections) = batch size: ", len(detections))
+        # print("len(detections) = batch size: ", len(detections))
         # print("detections: ", (detections))
         for detection, token in zip(detections, tokens):
             annos = []
             # print("detection: ", (detection))
-            boxes = output_to_nusc_box(detection, token)
-            # print("boxes: ", (boxes))
-
-            for box in boxes:
+            pred_boxes = output_to_nusc_box(detection, token)
+            # print("pred_bboxes: ", pred_bboxes)
+            self.logger.experiment.add_figure(
+                'mm_val_visualize_bev',
+                visualize_sample(
+                    nusc=self.nusc,
+                    sample_token=token,
+                    pred_boxes=pred_boxes,
+                ),
+                global_step=self.global_step
+            )
+            for pred_box in pred_boxes:
                 egopose_to_world_trans, egopose_to_world_rot = lidar_egopose_to_world(token, self.nusc)
 
                 # transform from egopose to world
-                box.rotate(Quaternion(egopose_to_world_rot))
-                box.translate(np.array(egopose_to_world_trans))
+                pred_box.rotate(Quaternion(egopose_to_world_rot))
+                pred_box.translate(np.array(egopose_to_world_trans))
 
                 nusc_anno = {
-                    'sample_token': box.token,
-                    'translation': box.center.tolist(),
-                    'size': box.wlh.tolist(),
-                    'rotation': box.orientation.elements.tolist(),
-                    'velocity': box.velocity[:2].tolist(),
-                    'detection_name': box.name,
-                    'detection_score': box.score,
-                    'attribute_name': max(cls_attr_dist[box.name].items(),
+                    'sample_token': pred_box.token,
+                    'translation': pred_box.center.tolist(),
+                    'size': pred_box.wlh.tolist(),
+                    'rotation': pred_box.orientation.elements.tolist(),
+                    'velocity': pred_box.velocity[:2].tolist(),
+                    'detection_name': pred_box.name,
+                    'detection_score': pred_box.score,
+                    'attribute_name': max(cls_attr_dist[pred_box.name].items(),
                                           key=operator.itemgetter(1))[0],
                 }
                 # align six camera
@@ -545,7 +536,19 @@ class TrainingModule(pl.LightningModule):
                 self.oft_obj_evaluation(tokens, batch_pred_objects)
 
             elif self.cfg.OBJ.HEAD_NAME == 'mm':
-                self.mm_obj_evaluation(tokens, outputs['bbox_results'])
+                output = outputs['output']
+                pred_bboxes_list = self.model.detection_head.get_bboxes(
+                    output['detection_output']['cls_scores'],
+                    output['detection_output']['bbox_preds'],
+                    output['detection_output']['dir_cls_preds'],
+                    [item[0] for item in batch['input_metas']],
+                )
+                pred_bboxes_list = [
+                    bbox3d2result(bboxes, scores, labels)
+                    for bboxes, scores, labels in pred_bboxes_list
+                ]
+
+                self.mm_obj_evaluation(tokens, pred_bboxes_list)
 
     def on_validation_epoch_start(self):
         if self.cfg.EVALUATION is True:

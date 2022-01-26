@@ -33,7 +33,7 @@ _C = CN()
 _C.LOG_DIR = 'tensorboard_logs'
 _C.EVA_DIR = 'output_dir'
 
-_C.TAG = 'multi_cam'
+_C.TAG = 'lss'
 
 _C.GPUS = [0]  # which gpus to use
 _C.PRECISION = 32  # 16bit or 32bit

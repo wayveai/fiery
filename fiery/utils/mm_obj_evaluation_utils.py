@@ -1,7 +1,7 @@
 import numpy as np
 import pyquaternion
 from nuscenes.utils.data_classes import Box as NuScenesBox
-# from os import path as osp
+from nuscenes.eval.detection.data_classes import DetectionBox
 
 # mmdet3d
 from mmdet3d.core import Box3DMode
@@ -10,7 +10,7 @@ from mmdet3d.core.bbox import LiDARInstance3DBoxes
 from fiery.data import NUSCENE_CLASS_NAMES
 
 
-def mm_bbox3d2result(bboxes, scores, labels, attrs=None):
+def mm_bbox3d2result(bboxes, scores, labels, attrs=None, gt=False):
     """Convert detection results to a list of numpy arrays.
 
     Args:
@@ -27,16 +27,23 @@ def mm_bbox3d2result(bboxes, scores, labels, attrs=None):
             - scores (torch.Tensor): Prediction scores.
             - labels_3d (torch.Tensor): Box labels.
             - attrs_3d (torch.Tensor, optional): Box attributes.
-    """
-    # result_dict = dict(
-    #     boxes_3d=bboxes.to('cpu'),
-    #     scores_3d=scores.cpu(),
-    #     labels_3d=labels.cpu())
 
-    result_dict = dict(
-        boxes_3d=bboxes,
-        scores_3d=scores,
-        labels_3d=labels)
+    """
+    if gt is False:
+        result_dict = dict(
+            boxes_3d=bboxes.to('cpu'),
+            scores_3d=scores.cpu(),
+            labels_3d=labels.cpu())
+
+        # result_dict = dict(
+        #     boxes_3d=bboxes,
+        #     scores_3d=scores,
+        #     labels_3d=labels)
+    else:
+        result_dict = dict(
+            boxes_3d=bboxes.to('cpu'),
+            # scores_3d=scores.cpu(),
+            labels_3d=labels.cpu())
 
     if attrs is not None:
         result_dict['attrs_3d'] = attrs.cpu()
@@ -72,11 +79,13 @@ def output_to_nusc_box(detection, token):
     for i in range(len(box3d)):
         quat = pyquaternion.Quaternion(axis=[0, 0, 1], radians=box_yaw[i])
         velocity = (0.0, 0.0, 0.0)
+
         # velocity = (*box3d.tensor[i, 7:9], 0.0)
         # velo_val = np.linalg.norm(box3d[i, 7:9])
         # velo_ori = box3d[i, 6]
         # velocity = (
         # velo_val * np.cos(velo_ori), velo_val * np.sin(velo_ori), 0.0)
+
         box = NuScenesBox(
             center=box_gravity_center[i],
             size=box_dims[i],
@@ -87,6 +96,18 @@ def output_to_nusc_box(detection, token):
             name=NUSCENE_CLASS_NAMES[labels[i]],
             token=token,
         )
+
+        # box = DetectionBox(
+        #     translation=box_gravity_center[i],
+        #     size=box_dims[i],
+        #     rotation=quat,
+        #     # label=labels[i],
+        #     detection_score=scores[i],
+        #     velocity=velocity,
+        #     detection_name=NUSCENE_CLASS_NAMES[labels[i]],
+        #     sample_token=token,
+        # )
+
         box_list.append(box)
     return box_list
 

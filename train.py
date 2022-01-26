@@ -42,7 +42,8 @@ def main():
         dataset_version_tag = ''
 
     save_dir = os.path.join(
-        cfg.LOG_DIR, cfg.TAG + '_' + str(cfg.IMAGE.N_CAMERA) + '_cam' + seg_loss_tag + dataset_version_tag
+        cfg.LOG_DIR, cfg.TAG + '_' + cfg.OBJ.HEAD_NAME + '_' +
+        str(cfg.IMAGE.N_CAMERA) + '_cam' + seg_loss_tag + dataset_version_tag
     )
     tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir, name=None)
 

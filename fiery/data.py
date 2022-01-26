@@ -663,7 +663,7 @@ def prepare_dataloaders(cfg, return_dataset=False):
     # if cfg.DATASET.VERSION == 'v1.0-mini':
     #     traindata.indices = traindata.indices[:10]
     #     valdata.indices = valdata.indices[:10]
-    if cfg.DATASET.VERSION == 'v1.0-trainval' and cfg.DATASET.TRAINING_SAMPLES != -1:
+    if cfg.DATASET.TRAINING_SAMPLES != -1:
         traindata.ixes = traindata.ixes[:cfg.DATASET.TRAINING_SAMPLES]
 
     print("traindata.__len__(): ", traindata.__len__())
