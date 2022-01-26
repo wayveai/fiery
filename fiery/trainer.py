@@ -339,7 +339,10 @@ class TrainingModule(pl.LightningModule):
         # name = name + f'_{batch_idx}'
         self.logger.experiment.add_video(
             name, visualisation_video, global_step=self.training_step_count, fps=2)
-
+            
+    #####
+    # training_step
+    #####
     def training_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, True)
 
@@ -364,6 +367,9 @@ class TrainingModule(pl.LightningModule):
 
         return {'loss': loss}
 
+    #####
+    # validation_step
+    #####
     def validation_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
 
@@ -411,7 +417,7 @@ class TrainingModule(pl.LightningModule):
                 [item[0] for item in batch['input_metas']],
             )
             pred_bboxes_list = [
-                bbox3d2result(bboxes.detach().cpu(), scores.detach().cpu(), labels.detach().cpu())
+                bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
                 for bboxes, scores, labels in pred_bboxes_list
             ]
             for detection, token in zip(pred_bboxes_list, tokens):
@@ -577,7 +583,7 @@ class TrainingModule(pl.LightningModule):
                     [item[0] for item in batch['input_metas']],
                 )
                 pred_bboxes_list = [
-                    bbox3d2result(bboxes, scores, labels)
+                    bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
                     for bboxes, scores, labels in pred_bboxes_list
                 ]
 
@@ -659,3 +665,122 @@ class TrainingModule(pl.LightningModule):
             )
 
         return optimizer
+
+    #####
+    # test_step
+    #####
+    def test_step(self, batch, batch_idx):
+        pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
+
+        if self.cfg.LOSS.SEG_USE is True:
+            #####
+            # SEG Loss Logger
+            #####
+            for key, value in seg_loss.items():
+                self.log(f'val_seg_loss/{key}', value, global_step=self.global_step)
+            self.visualise(labels, output, batch_idx, prefix='val')
+            loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
+        else:
+            loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
+
+        #####
+        # OBJ Loss Logger
+        #####
+        for key, value in loss_dict.items():
+            self.log(f'val_obj_loss/{key}', value)
+
+        output_dict = {'val_loss': loss, 'output': output}
+        # Visualzation
+        if self.cfg.OBJ.HEAD_NAME == 'oft':
+            pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
+            self.logger.experiment.add_figure(
+                'oft_val_visualize_bev',
+                visualize_bev(
+                    objects,
+                    gt_encoded[0],
+                    pre_objects,
+                    pre_encoded[0],
+                    grids
+                ),
+                global_step=self.global_step
+            )
+            output_dict['pred_objects'] = pre_objects
+        elif self.cfg.OBJ.HEAD_NAME == 'mm':
+            tokens = batch['sample_token']
+            tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+
+            pred_bboxes_list = self.model.detection_head.get_bboxes(
+                output['detection_output']['cls_scores'],
+                output['detection_output']['bbox_preds'],
+                output['detection_output']['dir_cls_preds'],
+                [item[0] for item in batch['input_metas']],
+            )
+            pred_bboxes_list = [
+                bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
+                for bboxes, scores, labels in pred_bboxes_list
+            ]
+            for detection, token in zip(pred_bboxes_list, tokens):
+                pred_boxes = output_to_nusc_box(detection, token)
+                # print("pred_boxes: ", pred_boxes)
+
+                self.logger.experiment.add_figure(
+                    'mm_val_visualize_bev',
+                    visualize_sample(
+                        nusc=self.nusc,
+                        sample_token=token,
+                        pred_boxes=pred_boxes,
+                    ),
+                    global_step=self.global_step
+                )
+                break
+
+        return output_dict
+
+    def on_test_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
+        if self.cfg.EVALUATION is True:
+            tokens = batch['sample_token']
+            tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+            if self.cfg.OBJ.HEAD_NAME == 'oft':
+                assert 'pred_objects' in outputs
+                batch_pred_objects = outputs['pred_objects']
+                self.oft_obj_evaluation(tokens, batch_pred_objects)
+
+            elif self.cfg.OBJ.HEAD_NAME == 'mm':
+                output = outputs['output']
+                pred_bboxes_list = self.model.detection_head.get_bboxes(
+                    output['detection_output']['cls_scores'],
+                    output['detection_output']['bbox_preds'],
+                    output['detection_output']['dir_cls_preds'],
+                    [item[0] for item in batch['input_metas']],
+                )
+                pred_bboxes_list = [
+                    bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
+                    for bboxes, scores, labels in pred_bboxes_list
+                ]
+
+                self.mm_obj_evaluation(tokens, pred_bboxes_list)
+
+    def on_test_epoch_start(self):
+        if self.cfg.EVALUATION is True:
+            self.nusc_annos = {'results': {}, 'meta': None}
+
+    def on_test_epoch_end(self) -> None:
+        if self.cfg.EVALUATION is True:
+            self.nusc_annos['meta'] = {
+                "use_camera": True,
+                "use_lidar": False,
+                "use_radar": False,
+                "use_map": False,
+                "use_external": False,
+            }
+            print("number of token: ", len(self.nusc_annos["results"]))
+
+            os.makedirs(self.cfg.EVA_DIR, exist_ok=True)
+
+            with open(os.path.join(self.cfg.EVA_DIR, 'detection_result.json'), "w") as f:
+                json.dump(self.nusc_annos, f)
+
+            evaluate_json(self.cfg.EVA_DIR, self.cfg.DATASET.VERSION, self.cfg.DATASET.DATAROOT)
+
+        # self.trainer.save_checkpoint(os.path.join(self.trainer.log_dir, 'checkpoints',
+        #                              f'{self.trainer.current_epoch}.ckpt'))

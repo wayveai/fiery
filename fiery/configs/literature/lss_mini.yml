@@ -3,11 +3,11 @@ _BASE_: '../single_timeframe.yml'
 TAG: 'lss'
 EVA_DIR: 'output_dir/lss_oft_mini'
 
-GPUS: [0]
+GPUS: [1]
 EPOCHS: 50
 BATCHSIZE: 6
 N_WORKERS: 8
-EVALUATION: True
+EVALUATION: False
 VALID_FREQ: 1.0 
 GRAD_NORM_CLIP: 10
 
