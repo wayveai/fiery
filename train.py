@@ -70,9 +70,12 @@ def main():
         # resume_from_checkpoint=checkpoint_path,                                                              h,
     )
 
-    trainer.fit(model, trainloader, valloader)
-#     trainer.fit(model, trainloader, valloader, ckpt_path=checkpoint_path)
+    if args.eval_path is None:
+        trainer.fit(model, trainloader, valloader)
+        # trainer.fit(model, trainloader, valloader, ckpt_path=checkpoint_path)
+    else:
 
+        trainer.test(model, test_dataloaders=valloader, ckpt_path=args.eval_path)
     # trainer.save_checkpoint("final_epoch.ckpt")
 
 

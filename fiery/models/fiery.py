@@ -12,6 +12,8 @@ from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_v
 
 from mmcv import Config
 from mmdet3d.models.dense_heads import Anchor3DHead
+from mmdet3d.models.backbones import SECOND
+from mmdet.models.necks.fpn import FPN
 
 
 class Fiery(nn.Module):
@@ -109,17 +111,40 @@ class Fiery(nn.Module):
             predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
         )
 
+        self.detection_backbone = SECOND(
+            **Config(
+                dict(
+                    in_channels=64,
+                    norm_cfg=dict(type='naiveSyncBN2d', eps=1e-3, momentum=0.01),
+                    layer_nums=[3, 5, 5],
+                    layer_strides=[2, 2, 2],
+                    out_channels=[64, 128, 256],
+                )
+            )
+        )
+        self.detection_neck = FPN(
+            **Config(
+                dict(
+                    norm_cfg=dict(type='naiveSyncBN2d', eps=1e-3, momentum=0.01),
+                    act_cfg=dict(type='ReLU'),
+                    in_channels=[64, 128, 256],
+                    out_channels=256,
+                    start_level=0,
+                    num_outs=3,
+                )
+            )
+        )
         self.detection_head = Anchor3DHead(
             **Config(
                 dict(
                     num_classes=10,
-                    in_channels=64,
-                    feat_channels=64,
+                    in_channels=256,
+                    feat_channels=256,
                     use_direction_classifier=True,
                     anchor_generator=dict(
                         type='AlignedAnchor3DRangeGenerator',
                         ranges=[[-50, -50, -1.8, 50, 50, -1.8]],
-                        scales=[1],
+                        scales=[1, 2, 4],
                         sizes=[
                             [0.8660, 2.5981, 1.],  # 1.5/sqrt(3)
                             [0.5774, 1.7321, 1.],  # 1/sqrt(3)
@@ -250,10 +275,14 @@ class Fiery(nn.Module):
         # Predict bird's-eye view outputs
         if self.n_future > 0:
             bev_output = self.decoder(future_states)
-            cls_scores, bbox_preds, dir_cls_preds = self.detection_head(future_states)
+            detection_input = future_states.flatten(0, 1)
+            cls_scores, bbox_preds, dir_cls_preds = self.detection_head([future_states])
         else:
             bev_output = self.decoder(states[:, -1:])
-            cls_scores, bbox_preds, dir_cls_preds = self.detection_head([states[:, -1:].flatten(0, 1)])
+            detection_input = states[:, -1:].flatten(0, 1)
+        detection_backbone_output = self.detection_backbone(detection_input)
+        detection_neck_output = self.detection_neck(detection_backbone_output)
+        cls_scores, bbox_preds, dir_cls_preds = self.detection_head(detection_neck_output)
 
         detection_output = dict(cls_scores=cls_scores, bbox_preds=bbox_preds, dir_cls_preds=dir_cls_preds)
 

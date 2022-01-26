@@ -11,6 +11,7 @@ from fiery.config import get_cfg
 from fiery.models.fiery import Fiery
 from fiery.losses import ProbabilisticLoss, SpatialRegressionLoss, SegmentationLoss
 from fiery.metrics import IntersectionOverUnion, PanopticMetric
+from fiery.object_losses import compute_loss
 from fiery.utils.geometry import cumulative_warp_features_reverse, make_grid
 from fiery.utils.instance import predict_instance_segmentation_and_trajectories
 from fiery.utils.visualisation import visualise_output
@@ -265,17 +266,20 @@ class TrainingModule(pl.LightningModule):
         #####
         # OBJ Loss computation
         #####
-        loss_dict = self.model.detection_head.loss(
-            output['detection_output']['cls_scores'],
-            output['detection_output']['bbox_preds'],
-            output['detection_output']['dir_cls_preds'],
-            gt_bboxes=[item[0] for item in batch['gt_bboxes_3d']],
-            gt_labels=[item[0] for item in batch['gt_labels_3d']],
-            input_metas=[item[0] for item in batch['input_metas']],
-        )
-        loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
-        loss = torch.stack([loss_value for loss_value in loss_dict.values()]).sum()
-        # loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
+        if self.cfg.OBJ.HEAD_NAME == 'oft':
+            loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
+        elif self.cfg.OBJ.HEAD_NAME == 'mm':
+            loss_dict = self.model.detection_head.loss(
+                output['detection_output']['cls_scores'],
+                output['detection_output']['bbox_preds'],
+                output['detection_output']['dir_cls_preds'],
+                gt_bboxes=[item[0] for item in batch['gt_bboxes_3d']],
+                gt_labels=[item[0] for item in batch['gt_labels_3d']],
+                input_metas=[item[0] for item in batch['input_metas']],
+            )
+            loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
+            loss = torch.stack([loss_value for loss_value in loss_dict.values()]).sum()
+            loss_dict['total'] = loss
 
         #####
         # SEG Loss computation
@@ -339,13 +343,12 @@ class TrainingModule(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, True)
 
-        if self.cfg.LOSS.SEG_USE is True:
+        if self.cfg.LOSS.SEG_USE:
             #####
             # SEG Loss Logger
             #####
             for key, value in seg_loss.items():
-                self.logger.experiment.add_scalar(
-                    'train_seg_loss/' + key, value, global_step=self.global_step)
+                self.log(f'train_seg_loss/{key}', value, global_step=self.global_step)
             if self.training_step_count % self.cfg.VIS_INTERVAL == 0:
                 self.visualise(labels, output, batch_idx, prefix='train')
 
@@ -357,10 +360,9 @@ class TrainingModule(pl.LightningModule):
         # OBJ Loss Logger
         #####
         for key, value in loss_dict.items():
-            self.log(f'train_loss/{key}', value)
-        self.log('train_loss', loss, prog_bar=True)
+            self.log(f'train_obj_loss/{key}', value)
 
-        return {'loss': loss, 'loss_dict': loss_dict}
+        return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
         pre_encoded, gt_encoded, loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
@@ -370,18 +372,19 @@ class TrainingModule(pl.LightningModule):
             # SEG Loss Logger
             #####
             for key, value in seg_loss.items():
-                self.logger.experiment.add_scalar(
-                    'val_seg_loss/' + key, value, global_step=self.global_step)
+                self.log(f'val_seg_loss/{key}', value, global_step=self.global_step)
             self.visualise(labels, output, batch_idx, prefix='val')
+            loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
+        else:
+            loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
 
         #####
         # OBJ Loss Logger
         #####
         for key, value in loss_dict.items():
-            self.log(f'val_loss/{key}', value)
-        self.log('val_loss', loss, prog_bar=True)
+            self.log(f'val_obj_loss/{key}', value)
 
-        output_dict = {'val_loss': loss, 'loss_dict': loss_dict, 'output': output}
+        output_dict = {'val_loss': loss, 'output': output}
         # Visualzation
         if self.cfg.OBJ.HEAD_NAME == 'oft':
             pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
@@ -408,7 +411,7 @@ class TrainingModule(pl.LightningModule):
                 [item[0] for item in batch['input_metas']],
             )
             pred_bboxes_list = [
-                bbox3d2result(bboxes, scores, labels)
+                bbox3d2result(bboxes.detach().cpu(), scores.detach().cpu(), labels.detach().cpu())
                 for bboxes, scores, labels in pred_bboxes_list
             ]
             for detection, token in zip(pred_bboxes_list, tokens):
@@ -424,6 +427,7 @@ class TrainingModule(pl.LightningModule):
                     ),
                     global_step=self.global_step
                 )
+                break
 
         return output_dict
 
@@ -433,15 +437,15 @@ class TrainingModule(pl.LightningModule):
             # print("detection: ", (detection))
             pred_boxes = output_to_nusc_box(detection, token)
             # print("pred_bboxes: ", pred_bboxes)
-            self.logger.experiment.add_figure(
-                'mm_val_visualize_bev',
-                visualize_sample(
-                    nusc=self.nusc,
-                    sample_token=token,
-                    pred_boxes=pred_boxes,
-                ),
-                global_step=self.global_step
-            )
+            # self.logger.experiment.add_figure(
+            #     'mm_val_visualize_bev',
+            #     visualize_sample(
+            #         nusc=self.nusc,
+            #         sample_token=token,
+            #         pred_boxes=pred_boxes,
+            #     ),
+            #     global_step=self.global_step
+            # )
             for pred_box in pred_boxes:
                 egopose_to_world_trans, egopose_to_world_rot = lidar_egopose_to_world(token, self.nusc)
 

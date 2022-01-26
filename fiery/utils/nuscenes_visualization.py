@@ -58,7 +58,7 @@ def visualize_sample(nusc: NuScenes,
                      nsweeps: int = 1,
                      conf_th: float = 0.15,
                      eval_range: float = 50,
-                     verbose: bool = True,
+                     verbose: bool = False,
                      savepath: str = None) -> None:
     """
     Visualizes a sample from BEV with annotations and detection results.
