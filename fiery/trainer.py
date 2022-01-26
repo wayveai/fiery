@@ -358,7 +358,7 @@ class TrainingModule(pl.LightningModule):
         #####
         for key, value in loss_dict.items():
             self.log(f'train_loss/{key}', value)
-        # self.log('train_loss', loss, prog_bar=True)
+        self.log('train_loss', loss, prog_bar=True)
 
         return {'loss': loss, 'loss_dict': loss_dict}
 
@@ -379,8 +379,9 @@ class TrainingModule(pl.LightningModule):
         #####
         for key, value in loss_dict.items():
             self.log(f'val_loss/{key}', value)
-        # self.log('val_loss', loss, prog_bar=True)
+        self.log('val_loss', loss, prog_bar=True)
 
+        output_dict = {'val_loss': loss, 'loss_dict': loss_dict, 'output': output}
         # Visualzation
         if self.cfg.OBJ.HEAD_NAME == 'oft':
             pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
@@ -395,8 +396,8 @@ class TrainingModule(pl.LightningModule):
                 ),
                 global_step=self.global_step
             )
+            output_dict['pred_objects'] = pre_objects
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
-            pre_objects = None
             tokens = batch['sample_token']
             tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
@@ -424,7 +425,7 @@ class TrainingModule(pl.LightningModule):
                     global_step=self.global_step
                 )
 
-        return {'val_loss': loss, 'loss_dict': loss_dict, 'pred_objects': pre_objects, 'output': output}
+        return output_dict
 
     def mm_obj_evaluation(self, tokens, detections):
         for detection, token in zip(detections, tokens):
@@ -559,6 +560,7 @@ class TrainingModule(pl.LightningModule):
             tokens = batch['sample_token']
             tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
             if self.cfg.OBJ.HEAD_NAME == 'oft':
+                assert 'pred_objects' in outputs
                 batch_pred_objects = outputs['pred_objects']
                 self.oft_obj_evaluation(tokens, batch_pred_objects)
 
