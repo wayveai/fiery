@@ -66,7 +66,7 @@ def main():
         trainer.fit(model, trainloader, valloader)
         trainer.test(dataloaders=testloader, ckpt_path=trainer.checkpoint_callback.last_model_path, verbose=False)
     else:
-        trainer.test(model=model, test_dataloaders=testloader, ckpt_path=args.eval_path, verbose=False)
+        trainer.test(model=model, dataloaders=testloader, ckpt_path=args.eval_path, verbose=False)
     # trainer.save_checkpoint("final_epoch.ckpt")
 
 
