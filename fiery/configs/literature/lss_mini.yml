@@ -4,7 +4,7 @@ TAG: 'lss'
 EVA_DIR: 'output_dir/lss_mini'
 # EVALUATION: False
 
-GPUS: [1]
+GPUS: [0]
 EPOCHS: 50
 BATCHSIZE: 6
 N_WORKERS: 8

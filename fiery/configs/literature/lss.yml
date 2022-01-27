@@ -15,8 +15,8 @@ DATASET:
   DATAROOT: "/home/master/10/cytseng/data/sets/nuscenes/"
   FILTER_INVISIBLE_VEHICLES: False
   VERSION: "v1.0-trainval"
-  TRAINING_SAMPLES: 10000
-  VALIDATING_SAMPLES: -1
+  TRAINING_SAMPLES: 7000
+  VALIDATING_SAMPLES: 2000
 
 LIFT:
   X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
