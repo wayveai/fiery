@@ -1,7 +1,7 @@
 _BASE_: '../single_timeframe.yml'
 
 TAG: 'lss'
-EVA_DIR: 'output_dir/lss_oft_mini'
+EVA_DIR: 'output_dir/lss_mini'
 
 GPUS: [0]
 EPOCHS: 50
