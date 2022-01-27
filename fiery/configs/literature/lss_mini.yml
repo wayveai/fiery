@@ -5,7 +5,7 @@ EVA_DIR: 'output_dir/lss_mini'
 # EVALUATION: False
 
 GPUS: [0]
-EPOCHS: 50
+EPOCHS: 1
 BATCHSIZE: 6
 N_WORKERS: 8
 VALID_FREQ: 1.0 

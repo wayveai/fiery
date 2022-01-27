@@ -65,6 +65,7 @@ def main():
     if args.eval_path is None:
         trainer.fit(model, trainloader, valloader)
         trainer.test(dataloaders=testloader, ckpt_path='best', verbose=False)
+
     else:
         trainer.test(model=model, dataloaders=testloader, ckpt_path=args.eval_path, verbose=False)
     # trainer.save_checkpoint("final_epoch.ckpt")
