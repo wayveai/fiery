@@ -35,7 +35,8 @@ class TrainingModule(pl.LightningModule):
         super().__init__()
 
         # see config.py for details
-        self.hparams = hparams
+        # self.hparams = hparams
+        self.save_hyperparameters(hparams)
         # pytorch lightning does not support saving YACS CfgNone
         cfg = get_cfg(cfg_dict=self.hparams)
         self.cfg = cfg
@@ -388,7 +389,7 @@ class TrainingModule(pl.LightningModule):
         # OBJ Loss Logger
         #####
         for key, value in loss_dict.items():
-            self.log(f'val_obj_loss/{key}', value)
+            self.log(f'val_obj_loss/{key}', value, batch_size=self.cfg.BATCHSIZE)
 
         output_dict = {'val_loss': loss}
         # Visualzation
@@ -692,7 +693,7 @@ class TrainingModule(pl.LightningModule):
         # OBJ Loss Logger
         #####
         for key, value in loss_dict.items():
-            self.log(f'test_obj_loss/{key}', value)
+            self.log(f'test_obj_loss/{key}', value, batch_size=self.cfg.BATCHSIZE)
 
         output_dict = {'test_loss': loss}
         # Visualzation

@@ -1,9 +1,8 @@
 from typing import Optional
 
 import torch
-from pytorch_lightning.metrics.metric import Metric
-from pytorch_lightning.metrics.functional.classification import stat_scores_multiple_classes
-from pytorch_lightning.metrics.functional.reduction import reduce
+from torchmetrics import Metric
+from torchmetrics.functional import stat_scores
 
 
 class IntersectionOverUnion(Metric):
@@ -30,7 +29,7 @@ class IntersectionOverUnion(Metric):
         self.add_state('support', default=torch.zeros(n_classes), dist_reduce_fx='sum')
 
     def update(self, prediction: torch.Tensor, target: torch.Tensor):
-        tps, fps, _, fns, sups = stat_scores_multiple_classes(prediction, target, self.n_classes)
+        tps, fps, _, fns, sups = stat_scores(prediction, target, num_classes=self.n_classes, mdmc_reduce='global')
 
         self.true_positive += tps
         self.false_positive += fps
@@ -63,7 +62,7 @@ class IntersectionOverUnion(Metric):
         if (self.ignore_index is not None) and (0 <= self.ignore_index < self.n_classes):
             scores = torch.cat([scores[:self.ignore_index], scores[self.ignore_index + 1:]])
 
-        return reduce(scores, reduction=self.reduction)
+        return scores
 
 
 class PanopticMetric(Metric):

@@ -17,8 +17,7 @@ def main():
 
     trainloader, valloader, testloader = prepare_dataloaders(cfg)
     model = TrainingModule(cfg.convert_to_dict())
-    # checkpoint_path =
-#     model = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
+
     if cfg.PRETRAINED.LOAD_WEIGHTS:
         # Load single-image instance segmentation model.
         pretrained_model_weights = torch.load(
@@ -47,7 +46,7 @@ def main():
 
     trainer = pl.Trainer(
         gpus=cfg.GPUS,
-        accelerator='ddp',
+        strategy=DDPPlugin(find_unused_parameters=True),
         precision=cfg.PRECISION,
         sync_batchnorm=True,
         gradient_clip_val=cfg.GRAD_NORM_CLIP,
@@ -57,7 +56,6 @@ def main():
         # log_every_n_steps=cfg.LOGGING_INTERVAL,
         val_check_interval=cfg.VALID_FREQ,
         num_sanity_val_steps=0,
-        plugins=DDPPlugin(find_unused_parameters=True),
         profiler='simple',
 
         # callbacks=checkpoint_callback,
@@ -66,9 +64,7 @@ def main():
 
     if args.eval_path is None:
         trainer.fit(model, trainloader, valloader)
-        # trainer.fit(model, trainloader, valloader, ckpt_path=checkpoint_path)
-        trainer.test(test_dataloaders=testloader, verbose=False)
-
+        trainer.test(dataloaders=testloader, ckpt_path=trainer.checkpoint_callback.last_model_path, verbose=False)
     else:
         trainer.test(model=model, test_dataloaders=testloader, ckpt_path=args.eval_path, verbose=False)
     # trainer.save_checkpoint("final_epoch.ckpt")
