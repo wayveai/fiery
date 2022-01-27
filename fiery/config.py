@@ -58,6 +58,7 @@ _C.DATASET.NAME = 'nuscenes'
 _C.DATASET.IGNORE_INDEX = 255  # Ignore index when creating flow/offset labels
 _C.DATASET.FILTER_INVISIBLE_VEHICLES = True  # Filter vehicles that are not visible from the cameras
 _C.DATASET.TRAINING_SAMPLES = -1
+_C.DATASET.VALIDATING_SAMPLES = -1
 
 _C.TIME_RECEPTIVE_FIELD = 3  # how many frames of temporal context (1 for single timeframe)
 _C.N_FUTURE_FRAMES = 4  # how many time steps into the future to predict

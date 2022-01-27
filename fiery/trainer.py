@@ -339,7 +339,7 @@ class TrainingModule(pl.LightningModule):
         # name = name + f'_{batch_idx}'
         self.logger.experiment.add_video(
             name, visualisation_video, global_step=self.training_step_count, fps=2)
-            
+
     #####
     # training_step
     #####
@@ -406,7 +406,7 @@ class TrainingModule(pl.LightningModule):
                 global_step=self.global_step
             )
             output_dict['pred_objects'] = pre_objects
-        elif self.cfg.OBJ.HEAD_NAME == 'mm':
+        elif self.cfg.OBJ.HEAD_NAME == 'mm' and batch_idx == 0:
             tokens = batch['sample_token']
             tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
@@ -705,7 +705,7 @@ class TrainingModule(pl.LightningModule):
                 global_step=self.global_step
             )
             output_dict['pred_objects'] = pre_objects
-        elif self.cfg.OBJ.HEAD_NAME == 'mm':
+        elif self.cfg.OBJ.HEAD_NAME == 'mm' and batch_idx == 0:
             tokens = batch['sample_token']
             tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
