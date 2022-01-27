@@ -659,6 +659,7 @@ def prepare_dataloaders(cfg, return_dataset=False):
 
     traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
     valdata = FuturePredictionDataset(nusc, False, cfg)
+    testdata = FuturePredictionDataset(nusc, False, cfg)
 
     # if cfg.DATASET.VERSION == 'v1.0-mini':
     #     traindata.indices = traindata.indices[:10]
@@ -672,6 +673,7 @@ def prepare_dataloaders(cfg, return_dataset=False):
 
     print("traindata.__len__(): ", traindata.__len__())
     print("valdata.__len__(): ", valdata.__len__())
+    print("testdata.__len__(): ", testdata.__len__())
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(
@@ -680,8 +682,10 @@ def prepare_dataloaders(cfg, return_dataset=False):
     valloader = torch.utils.data.DataLoader(
         valdata, batch_size=cfg.BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
     )
-
+    testloader = torch.utils.data.DataLoader(
+        testdata, batch_size=cfg.BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
+    )
     if return_dataset:
-        return trainloader, valloader, traindata, valdata
+        return trainloader, valloader, testloader, traindata, valdata, testdata
     else:
-        return trainloader, valloader
+        return trainloader, valloader, testloader

@@ -15,7 +15,7 @@ def main():
     args = get_parser().parse_args()
     cfg = get_cfg(args)
 
-    trainloader, valloader = prepare_dataloaders(cfg)
+    trainloader, valloader, testloader = prepare_dataloaders(cfg)
     model = TrainingModule(cfg.convert_to_dict())
     # checkpoint_path =
 #     model = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
@@ -31,20 +31,14 @@ def main():
     # save_dir = os.path.join(
     #     cfg.LOG_DIR, time.strftime('%d%B%Yat%H:%M:%S%Z') + '_' + socket.gethostname() + '_' + cfg.TAG
     # )
+    save_dir_tags = [cfg.TAG, cfg.OBJ.HEAD_NAME, f'{cfg.IMAGE.N_CAMERA}_cam']
     if cfg.LOSS.SEG_USE is True:
-        seg_loss_tag = '_segLoss'
-    else:
-        seg_loss_tag = ''
+        save_dir_tags.append('segLoss')
 
     if cfg.DATASET.VERSION == 'v1.0-mini':
-        dataset_version_tag = '_mini'
-    else:
-        dataset_version_tag = ''
+        save_dir_tags.append('mini')
 
-    save_dir = os.path.join(
-        cfg.LOG_DIR, cfg.TAG + '_' + cfg.OBJ.HEAD_NAME + '_' +
-        str(cfg.IMAGE.N_CAMERA) + '_cam' + seg_loss_tag + dataset_version_tag
-    )
+    save_dir = os.path.join(cfg.LOG_DIR, '_'.join(save_dir_tags))
     tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir, name=None)
 
     # checkpoint_callback = ModelCheckpoint(
@@ -73,8 +67,10 @@ def main():
     if args.eval_path is None:
         trainer.fit(model, trainloader, valloader)
         # trainer.fit(model, trainloader, valloader, ckpt_path=checkpoint_path)
+        trainer.test(test_dataloaders=testloader, verbose=False)
+
     else:
-        trainer.test(model=model, test_dataloaders=valloader, ckpt_path=args.eval_path, verbose=False)
+        trainer.test(model=model, test_dataloaders=testloader, ckpt_path=args.eval_path, verbose=False)
     # trainer.save_checkpoint("final_epoch.ckpt")
 
 
