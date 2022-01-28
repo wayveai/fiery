@@ -352,7 +352,7 @@ class TrainingModule(pl.LightningModule):
             # SEG Loss Logger
             #####
             for key, value in seg_loss.items():
-                self.log(f'train_seg_loss/{key}', value, global_step=self.global_step)
+                self.log(f'train_seg_loss/{key}', value)
             if self.training_step_count % self.cfg.VIS_INTERVAL == 0:
                 self.visualise(labels, output, batch_idx, prefix='train')
 
@@ -379,7 +379,7 @@ class TrainingModule(pl.LightningModule):
             # SEG Loss Logger
             #####
             for key, value in seg_loss.items():
-                self.log(f'val_seg_loss/{key}', value, global_step=self.global_step)
+                self.log(f'val_seg_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
             self.visualise(labels, output, batch_idx, prefix='val')
             loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
         else:
@@ -389,7 +389,7 @@ class TrainingModule(pl.LightningModule):
         # OBJ Loss Logger
         #####
         for key, value in loss_dict.items():
-            self.log(f'val_obj_loss/{key}', value, batch_size=self.cfg.BATCHSIZE)
+            self.log(f'val_obj_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
 
         output_dict = {'val_loss': loss}
         # Visualzation
@@ -683,7 +683,7 @@ class TrainingModule(pl.LightningModule):
             # SEG Loss Logger
             #####
             for key, value in seg_loss.items():
-                self.log(f'test_seg_loss/{key}', value, global_step=self.global_step)
+                self.log(f'test_seg_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
             self.visualise(labels, output, batch_idx, prefix='val')
             loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
         else:
@@ -693,7 +693,7 @@ class TrainingModule(pl.LightningModule):
         # OBJ Loss Logger
         #####
         for key, value in loss_dict.items():
-            self.log(f'test_obj_loss/{key}', value, batch_size=self.cfg.BATCHSIZE)
+            self.log(f'test_obj_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
 
         output_dict = {'test_loss': loss}
         # Visualzation

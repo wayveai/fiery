@@ -680,10 +680,10 @@ def prepare_dataloaders(cfg, return_dataset=False):
         traindata, batch_size=cfg.BATCHSIZE, shuffle=True, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=True
     )
     valloader = torch.utils.data.DataLoader(
-        valdata, batch_size=cfg.BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
+        valdata, batch_size=cfg.VAL_BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
     )
     testloader = torch.utils.data.DataLoader(
-        testdata, batch_size=cfg.BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
+        testdata, batch_size=cfg.VAL_BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
     )
     if return_dataset:
         return trainloader, valloader, testloader, traindata, valdata, testdata
