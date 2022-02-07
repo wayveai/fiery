@@ -15,7 +15,7 @@ DATASET:
   DATAROOT: "/home/master/10/cytseng/data/sets/nuscenes/"
   FILTER_INVISIBLE_VEHICLES: False
   VERSION: "v1.0-trainval"
-  TRAINING_SAMPLES: 7000
+  TRAINING_SAMPLES: -1
   VALIDATING_SAMPLES: 2000
 
 LIFT:
@@ -27,7 +27,7 @@ IMAGE:
   N_CAMERA: 6
 
 LOSS:
-  SEG_USE: False
+  SEG_USE: True
 
 OBJ:
   HEAD_NAME: "mm"
