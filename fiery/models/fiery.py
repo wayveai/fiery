@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+# import random
 
 from fiery.models.encoder import Encoder
 from fiery.models.temporal_model import TemporalModelIdentity, TemporalModel
@@ -8,6 +9,11 @@ from fiery.models.future_prediction import FuturePrediction
 from fiery.models.decoder import Decoder
 from fiery.utils.network import pack_sequence_dim, unpack_sequence_dim, set_bn_momentum
 from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_view_parameters, VoxelsSumming
+
+from mmcv import Config
+from mmdet3d.models.dense_heads import Anchor3DHead
+from mmdet3d.models.backbones import SECOND
+from mmdet.models.necks.fpn import FPN
 
 
 class Fiery(nn.Module):
@@ -101,14 +107,97 @@ class Fiery(nn.Module):
         self.decoder = Decoder(
             in_channels=self.future_pred_in_channels,
             n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
+            obj_n_classes=self.cfg.OBJ.N_CLASSES,
             predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
         )
 
+        self.detection_backbone = SECOND(
+            **Config(
+                dict(
+                    in_channels=64,
+                    norm_cfg=dict(type='naiveSyncBN2d', eps=1e-3, momentum=0.01),
+                    layer_nums=[3, 5, 5],
+                    layer_strides=[2, 2, 2],
+                    out_channels=[64, 128, 256],
+                )
+            )
+        )
+        self.detection_neck = FPN(
+            **Config(
+                dict(
+                    norm_cfg=dict(type='naiveSyncBN2d', eps=1e-3, momentum=0.01),
+                    act_cfg=dict(type='ReLU'),
+                    in_channels=[64, 128, 256],
+                    out_channels=256,
+                    start_level=0,
+                    num_outs=3,
+                )
+            )
+        )
+        self.detection_head = Anchor3DHead(
+            **Config(
+                dict(
+                    num_classes=10,
+                    in_channels=256,
+                    feat_channels=256,
+                    use_direction_classifier=True,
+                    anchor_generator=dict(
+                        type='AlignedAnchor3DRangeGenerator',
+                        ranges=[[-50, -50, -1.8, 50, 50, -1.8]],
+                        scales=[1, 2, 4],
+                        sizes=[
+                            [0.8660, 2.5981, 1.],  # 1.5/sqrt(3)
+                            [0.5774, 1.7321, 1.],  # 1/sqrt(3)
+                            [1., 1., 1.],
+                            [0.4, 0.4, 1],
+                        ],
+                        rotations=[0, 1.57],
+                        reshape_out=True),
+                    assigner_per_size=False,
+                    diff_rad_by_sin=True,
+                    dir_offset=0.7854,  # pi/4
+                    dir_limit_offset=0,
+                    bbox_coder=dict(type='DeltaXYZWLHRBBoxCoder'),
+                    loss_cls=dict(
+                        type='FocalLoss',
+                        use_sigmoid=True,
+                        gamma=2.0,
+                        alpha=0.25,
+                        loss_weight=1.0),
+                    loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
+                    loss_dir=dict(
+                        type='CrossEntropyLoss', use_sigmoid=False, loss_weight=0.2),
+                    train_cfg=dict(
+                        assigner=dict(
+                            type='MaxIoUAssigner',
+                            iou_calculator=dict(type='BboxOverlapsNearest3D'),
+                            pos_iou_thr=0.6,
+                            neg_iou_thr=0.3,
+                            min_pos_iou=0.3,
+                            ignore_iof_thr=-1),
+                        allowed_border=0,
+                        pos_weight=-1,
+                        debug=False),
+                    test_cfg=dict(
+                        use_rotate_nms=True,
+                        nms_across_levels=False,
+                        nms_pre=1000,
+                        nms_thr=0.2,
+                        score_thr=0.05,
+                        min_bbox_size=0,
+                        max_num=500),
+                )
+            )
+        )
+
         set_bn_momentum(self, self.cfg.MODEL.BN_MOMENTUM)
+        if self.cfg.LOSS.SEG_USE is True:
+            print("Use segmentation loss to regress.")
 
     def create_frustum(self):
         # Create grid in image plane
         h, w = self.cfg.IMAGE.FINAL_DIM
+
         downsampled_h, downsampled_w = h // self.encoder_downsample, w // self.encoder_downsample
 
         # Depth grid
@@ -123,7 +212,7 @@ class Fiery(nn.Module):
         y_grid = y_grid.view(1, downsampled_h, 1).expand(n_depth_slices, downsampled_h, downsampled_w)
 
         # Dimension (n_depth_slices, downsampled_h, downsampled_w, 3)
-        # containing data points in the image: left-right, top-bottom, depth
+        # containing data points in the image: left-right, top-bottom, depth
         frustum = torch.stack((x_grid, y_grid, depth_grid), -1)
         return nn.Parameter(frustum, requires_grad=False)
 
@@ -151,7 +240,8 @@ class Fiery(nn.Module):
             future_egomotions_spatial = future_egomotion.view(b, s, c, 1, 1).expand(b, s, c, h, w)
             # at time 0, no egomotion so feed zero vector
             future_egomotions_spatial = torch.cat([torch.zeros_like(future_egomotions_spatial[:, :1]),
-                                                   future_egomotions_spatial[:, :(self.receptive_field-1)]], dim=1)
+                                                   future_egomotions_spatial[:, :(self.receptive_field - 1)]],
+                                                  dim=1)
             x = torch.cat([x, future_egomotions_spatial], dim=-3)
 
         #  Temporal model
@@ -185,9 +275,18 @@ class Fiery(nn.Module):
         # Predict bird's-eye view outputs
         if self.n_future > 0:
             bev_output = self.decoder(future_states)
+            detection_input = future_states.flatten(0, 1)
+            cls_scores, bbox_preds, dir_cls_preds = self.detection_head([future_states])
         else:
             bev_output = self.decoder(states[:, -1:])
-        output = {**output, **bev_output}
+            detection_input = states[:, -1:].flatten(0, 1)
+        detection_backbone_output = self.detection_backbone(detection_input)
+        detection_neck_output = self.detection_neck(detection_backbone_output)
+        cls_scores, bbox_preds, dir_cls_preds = self.detection_head(detection_neck_output)
+
+        detection_output = dict(cls_scores=cls_scores, bbox_preds=bbox_preds, dir_cls_preds=dir_cls_preds)
+
+        output = {'detection_output': detection_output, **output, **bev_output}
 
         return output
 
@@ -199,23 +298,33 @@ class Fiery(nn.Module):
         # Add batch, camera dimension, and a dummy dimension at the end
         points = self.frustum.unsqueeze(0).unsqueeze(0).unsqueeze(-1)
 
+        # print("frustum.shape: ", self.frustum.shape)
+        # print("point.shape: ", points.shape)
+
         # Camera to ego reference frame
         points = torch.cat((points[:, :, :, :, :, :2] * points[:, :, :, :, :, 2:3], points[:, :, :, :, :, 2:3]), 5)
         combined_transformation = rotation.matmul(torch.inverse(intrinsics))
         points = combined_transformation.view(B, N, 1, 1, 1, 3, 3).matmul(points).squeeze(-1)
         points += translation.view(B, N, 1, 1, 1, 3)
+        # print("transform point.shape: ", pointss.shape)
 
         # The 3 dimensions in the ego reference frame are: (forward, sides, height)
         return points
 
     def encoder_forward(self, x):
         # batch, n_cameras, channels, height, width
+        # r = random.randint(0, 5)
+        # x = x[:, r, :, :, :].unsqueeze(1)
+        # print("x.shape: ", x.shape)
         b, n, c, h, w = x.shape
 
         x = x.view(b * n, c, h, w)
         x = self.encoder(x)
+        # print("x.shape: ", x.shape)
+
         x = x.view(b, n, *x.shape[1:])
         x = x.permute(0, 1, 3, 4, 5, 2)
+        # print("x.shape: ", x.shape)
 
         return x
 
@@ -226,7 +335,10 @@ class Fiery(nn.Module):
         output = torch.zeros(
             (batch, c, self.bev_dimension[0], self.bev_dimension[1]), dtype=torch.float, device=x.device
         )
-
+        # centers = torch.zeros(
+        #     (batch, c, self.bev_dimension[0] - 1, self.bev_dimension[1] - 1), dtype=torch.float, device=x.device
+        # )
+        # print("geometry.shape: ", geometry.shape)
         # Number of 3D points
         N = n * d * h * w
         for b in range(batch):
@@ -235,25 +347,33 @@ class Fiery(nn.Module):
 
             # Convert positions to integer indices
             geometry_b = ((geometry[b] - (self.bev_start_position - self.bev_resolution / 2.0)) / self.bev_resolution)
+            # print("geometry.shape: ", geometry.shape)
+            # print("geometry: ", geometry)
+            # print("geometry_b[0][0].shape: ", geometry_b[0][0].shape)
+            # print("geometry_b: ", geometry_b[0][0])
+
             geometry_b = geometry_b.view(N, 3).long()
+
+            # print("(self.bev_start_position - self.bev_resolution / 2.0): ",
+            #       (self.bev_start_position - self.bev_resolution / 2.0))
 
             # Mask out points that are outside the considered spatial extent.
             mask = (
-                    (geometry_b[:, 0] >= 0)
-                    & (geometry_b[:, 0] < self.bev_dimension[0])
-                    & (geometry_b[:, 1] >= 0)
-                    & (geometry_b[:, 1] < self.bev_dimension[1])
-                    & (geometry_b[:, 2] >= 0)
-                    & (geometry_b[:, 2] < self.bev_dimension[2])
+                (geometry_b[:, 0] >= 0)
+                & (geometry_b[:, 0] < self.bev_dimension[0])
+                & (geometry_b[:, 1] >= 0)
+                & (geometry_b[:, 1] < self.bev_dimension[1])
+                & (geometry_b[:, 2] >= 0)
+                & (geometry_b[:, 2] < self.bev_dimension[2])
             )
             x_b = x_b[mask]
             geometry_b = geometry_b[mask]
 
             # Sort tensors so that those within the same voxel are consecutives.
             ranks = (
-                    geometry_b[:, 0] * (self.bev_dimension[1] * self.bev_dimension[2])
-                    + geometry_b[:, 1] * (self.bev_dimension[2])
-                    + geometry_b[:, 2]
+                geometry_b[:, 0] * (self.bev_dimension[1] * self.bev_dimension[2])
+                + geometry_b[:, 1] * (self.bev_dimension[2])
+                + geometry_b[:, 2]
             )
             ranks_indices = ranks.argsort()
             x_b, geometry_b, ranks = x_b[ranks_indices], geometry_b[ranks_indices], ranks[ranks_indices]
@@ -270,6 +390,10 @@ class Fiery(nn.Module):
             bev_feature = bev_feature.squeeze(0)
 
             output[b] = bev_feature
+            # centers[b] = (bev_feature[:, 1:, 1:] + bev_feature[:, :-1, :-1]) / 2.0
+            # print("centers[b].shape: ", centers[b].shape)
+            # print("bev_feature.shape: ", bev_feature.shape)
+            # print("output: ", output)
 
         return output
 
@@ -295,6 +419,8 @@ class Fiery(nn.Module):
             noise: a sample from a (0, 1) gaussian with shape (b, s, latent_dim). If None, will sample in function
 
         Returns
+
+
         -------
             sample: sample taken from present/future distribution, broadcast to shape (b, s, latent_dim, h, w)
             present_distribution_mu: shape (b, s, latent_dim)

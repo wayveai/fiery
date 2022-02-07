@@ -97,7 +97,7 @@ class Encoder(nn.Module):
 
         if self.use_depth_distribution:
             depth = x[:, : self.D].softmax(dim=1)
-            x = depth.unsqueeze(1) * x[:, self.D : (self.D + self.C)].unsqueeze(2)  # outer product depth and features
+            x = depth.unsqueeze(1) * x[:, self.D: (self.D + self.C)].unsqueeze(2)  # outer product depth and features
         else:
             x = x.unsqueeze(2).repeat(1, 1, self.D, 1, 1)
 

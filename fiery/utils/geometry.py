@@ -5,6 +5,46 @@ import torch
 from pyquaternion import Quaternion
 
 
+def make_grid(grid_size, grid_offset, grid_res):
+    """
+        Constructs an array representing the corners of an orthographic grid 
+        """
+    x_length, y_length = grid_size
+    x_offset, y_offset, z_offset = grid_offset
+
+    xcoords = torch.arange(0., x_length + grid_res, grid_res) + x_offset
+    ycoords = torch.arange(0., y_length + grid_res, grid_res) + y_offset
+
+    yy, xx = torch.meshgrid(ycoords, xcoords)
+    return torch.stack([xx, yy, torch.full_like(xx, z_offset)], dim=-1)
+
+
+def calculate_birds_eye_view_parameters(x_bounds, y_bounds, z_bounds):
+    """
+    Parameters
+    ----------
+        x_bounds: Forward direction in the ego-car.
+        y_bounds: Sides
+        z_bounds: Height
+
+    Returns
+    -------
+        bev_resolution: Bird's-eye view bev_resolution
+        bev_start_position Bird's-eye view first element
+        bev_dimension Bird's-eye view tensor spatial dimension
+    """
+    bev_resolution = torch.tensor([row[2] for row in [x_bounds, y_bounds, z_bounds]])
+    bev_start_position = torch.tensor([row[0] + row[2] / 2.0 for row in [x_bounds, y_bounds, z_bounds]])
+    bev_dimension = torch.tensor([(row[1] - row[0]) / row[2] for row in [x_bounds, y_bounds, z_bounds]],
+                                 dtype=torch.long)
+
+    # print("bev_resolution: ", bev_resolution)
+    # print("bev_start_position: ", bev_start_position)
+    # print("bev_dimension: ", bev_dimension)
+
+    return bev_resolution, bev_start_position, bev_dimension
+
+
 def resize_and_crop_image(img, resize_dims, crop):
     # Bilinear resizing followed by cropping
     img = img.resize(resize_dims, resample=PIL.Image.BILINEAR)
@@ -34,28 +74,6 @@ def update_intrinsics(intrinsics, top_crop=0.0, left_crop=0.0, scale_width=1.0, 
     updated_intrinsics[1, 2] -= top_crop
 
     return updated_intrinsics
-
-
-def calculate_birds_eye_view_parameters(x_bounds, y_bounds, z_bounds):
-    """
-    Parameters
-    ----------
-        x_bounds: Forward direction in the ego-car.
-        y_bounds: Sides
-        z_bounds: Height
-
-    Returns
-    -------
-        bev_resolution: Bird's-eye view bev_resolution
-        bev_start_position Bird's-eye view first element
-        bev_dimension Bird's-eye view tensor spatial dimension
-    """
-    bev_resolution = torch.tensor([row[2] for row in [x_bounds, y_bounds, z_bounds]])
-    bev_start_position = torch.tensor([row[0] + row[2] / 2.0 for row in [x_bounds, y_bounds, z_bounds]])
-    bev_dimension = torch.tensor([(row[1] - row[0]) / row[2] for row in [x_bounds, y_bounds, z_bounds]],
-                                 dtype=torch.long)
-
-    return bev_resolution, bev_start_position, bev_dimension
 
 
 def convert_egopose_to_matrix_numpy(egopose):
@@ -172,7 +190,7 @@ def invert_pose_matrix(x):
     transposed_rotation = torch.transpose(x[:, :3, :3], 1, 2)
     translation = x[:, :3, 3:]
 
-    inverse_mat = torch.cat([transposed_rotation, -torch.bmm(transposed_rotation, translation)], dim=-1) # [B,3,4]
+    inverse_mat = torch.cat([transposed_rotation, -torch.bmm(transposed_rotation, translation)], dim=-1)  # [B,3,4]
     inverse_mat = torch.nn.functional.pad(inverse_mat, [0, 0, 0, 1], value=0)  # [B,4,4]
     inverse_mat[..., 3, 3] = 1.0
     return inverse_mat
@@ -269,14 +287,14 @@ def cumulative_warp_features_reverse(x, flow, mode='nearest', spatial_extent=Non
     """
     flow = pose_vec2mat(flow)
 
-    out = [x[:,0]]
-    
+    out = [x[:, 0]]
+
     for i in range(1, x.shape[1]):
-        if i==1:
+        if i == 1:
             cum_flow = invert_pose_matrix(flow[:, 0])
         else:
-            cum_flow = cum_flow @ invert_pose_matrix(flow[:,i-1])
-        out.append( warp_features(x[:,i], mat2pose_vec(cum_flow), mode, spatial_extent=spatial_extent))
+            cum_flow = cum_flow @ invert_pose_matrix(flow[:, i - 1])
+        out.append(warp_features(x[:, i], mat2pose_vec(cum_flow), mode, spatial_extent=spatial_extent))
     return torch.stack(out, 1)
 
 

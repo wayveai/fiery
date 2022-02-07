@@ -30,7 +30,7 @@ def convert_instance_mask_to_center_and_offset_label(instance_img, future_egomot
         warped_instance_seg[t] = warped_inst_t[0, 0]
 
     # Ignore id 0 which is the background
-    for instance_id in range(1, num_instances+1):
+    for instance_id in range(1, num_instances + 1):
         prev_xc = None
         prev_yc = None
         prev_mask = None
@@ -129,10 +129,10 @@ def get_instance_segmentation_and_centers(
     centers = find_instance_centers(center_predictions, conf_threshold=conf_threshold, nms_kernel_size=nms_kernel_size)
     if not len(centers):
         return torch.zeros(center_predictions.shape, dtype=torch.int64, device=center_predictions.device), \
-               torch.zeros((0, 2), device=centers.device)
+            torch.zeros((0, 2), device=centers.device)
 
     if len(centers) > max_n_instance_centers:
-        print(f'There are a lot of detected instance centers: {centers.shape}')
+        # print(f'There are a lot of detected instance centers: {centers.shape}')
         centers = centers[:max_n_instance_centers].clone()
 
     instance_ids = group_pixels(centers, offset_predictions)
@@ -293,13 +293,13 @@ def predict_instance_segmentation_and_trajectories(
 
     if make_consistent:
         if output['instance_flow'] is None:
-            print('Using zero flow because instance_future_output is None')
+            # print('Using zero flow because instance_future_output is None')
             output['instance_flow'] = torch.zeros_like(output['instance_offset'])
         consistent_instance_seg = []
         for b in range(batch_size):
             consistent_instance_seg.append(
-                make_instance_id_temporally_consistent(pred_inst[b:b+1],
-                                                       output['instance_flow'][b:b+1].detach())
+                make_instance_id_temporally_consistent(pred_inst[b: b + 1],
+                                                       output['instance_flow'][b: b + 1].detach())
             )
         consistent_instance_seg = torch.cat(consistent_instance_seg, dim=0)
     else:
@@ -328,5 +328,3 @@ def predict_instance_segmentation_and_trajectories(
         return consistent_instance_seg, matched_centers
 
     return consistent_instance_seg
-
-

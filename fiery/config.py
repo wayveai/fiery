@@ -31,27 +31,35 @@ CN = CfgNode
 
 _C = CN()
 _C.LOG_DIR = 'tensorboard_logs'
-_C.TAG = 'default'
+_C.EVA_DIR = 'output_dir'
+
+_C.TAG = 'lss'
 
 _C.GPUS = [0]  # which gpus to use
 _C.PRECISION = 32  # 16bit or 32bit
 _C.BATCHSIZE = 3
-_C.EPOCHS = 20
+_C.VAL_BATCHSIZE = 16
+_C.EPOCHS = 100
+_C.EVALUATION = False
 
 _C.N_WORKERS = 5
 _C.VIS_INTERVAL = 5000
-_C.LOGGING_INTERVAL = 500
+_C.LOGGING_INTERVAL = 5000
+_C.VALID_FREQ = 0.5
+_C.WEIGHT_SUMMARY = "top"
 
 _C.PRETRAINED = CN()
 _C.PRETRAINED.LOAD_WEIGHTS = False
 _C.PRETRAINED.PATH = ''
 
 _C.DATASET = CN()
-_C.DATASET.DATAROOT = './nuscenes/'
-_C.DATASET.VERSION = 'trainval'
+_C.DATASET.DATAROOT = '/home/master/10/cytseng/data/sets/nuscenes/'
+_C.DATASET.VERSION = 'v1.0-trainval'
 _C.DATASET.NAME = 'nuscenes'
 _C.DATASET.IGNORE_INDEX = 255  # Ignore index when creating flow/offset labels
 _C.DATASET.FILTER_INVISIBLE_VEHICLES = True  # Filter vehicles that are not visible from the cameras
+_C.DATASET.TRAINING_SAMPLES = -1
+_C.DATASET.VALIDATING_SAMPLES = -1
 
 _C.TIME_RECEPTIVE_FIELD = 3  # how many frames of temporal context (1 for single timeframe)
 _C.N_FUTURE_FRAMES = 4  # how many time steps into the future to predict
@@ -63,10 +71,11 @@ _C.IMAGE.TOP_CROP = 46
 _C.IMAGE.ORIGINAL_HEIGHT = 900  # Original input RGB camera height
 _C.IMAGE.ORIGINAL_WIDTH = 1600  # Original input RGB camera width
 _C.IMAGE.NAMES = ['CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT']
+_C.IMAGE.N_CAMERA = 6
 
 _C.LIFT = CN()  # image to BEV lifting
-_C.LIFT.X_BOUND = [-50.0, 50.0, 0.5]  # Forward
-_C.LIFT.Y_BOUND = [-50.0, 50.0, 0.5]  # Sides
+_C.LIFT.X_BOUND = [-40.0, 40.0, 0.5]  #  Forward
+_C.LIFT.Y_BOUND = [-40.0, 40.0, 0.5]  # Sides
 _C.LIFT.Z_BOUND = [-10.0, 10.0, 20.0]  # Height
 _C.LIFT.D_BOUND = [2.0, 50.0, 1.0]
 
@@ -118,15 +127,78 @@ _C.PROBABILISTIC.FUTURE_DIM = 6  # number of dimension added (future flow, futur
 _C.FUTURE_DISCOUNT = 0.95
 
 _C.OPTIMIZER = CN()
+_C.OPTIMIZER.NAME = 'AdamW'
 _C.OPTIMIZER.LR = 3e-4
 _C.OPTIMIZER.WEIGHT_DECAY = 1e-7
 _C.GRAD_NORM_CLIP = 5
+
+_C.LOSS = CN()
+_C.LOSS.SEG_USE = False
+
+_C.LOSS.SEG_LOSS_WEIGHT = CN()
+_C.LOSS.SEG_LOSS_WEIGHT.ALL = 0.5
+_C.LOSS.SEG_LOSS_WEIGHT.SEG = 0.25
+_C.LOSS.SEG_LOSS_WEIGHT.CENTER = 0.25
+_C.LOSS.SEG_LOSS_WEIGHT.OFFSET = 0.25
+_C.LOSS.SEG_LOSS_WEIGHT.PROBA = 0.25
+
+_C.LOSS.OBJ_LOSS_WEIGHT = CN()
+_C.LOSS.OBJ_LOSS_WEIGHT.ALL = 0.5
+_C.LOSS.OBJ_LOSS_WEIGHT.SCORE = 0.25
+_C.LOSS.OBJ_LOSS_WEIGHT.POS = 0.25
+_C.LOSS.OBJ_LOSS_WEIGHT.DIM = 0.25
+_C.LOSS.OBJ_LOSS_WEIGHT.ANG = 0.25
+
+_C.OBJ = CN()
+_C.OBJ.N_CLASSES = 1
+_C.OBJ.HEAD_NAME = 'mm'
+# mmdetection3d
+_C.MM = CN()
+_C.MM.POINT_CLOUD_RANGE = [-50, -50, -5, 50, 50, 3]
+
+_C.MM.OBJ = CN()
+
+_C.MM.BBOX_HEAD = CN()
+_C.MM.BBOX_HEAD.TYPE = 'Anchor3DHead'
+_C.MM.BBOX_HEAD.NUM_CLASSES = 10
+_C.MM.BBOX_HEAD.IN_CHANNELS = 256
+_C.MM.BBOX_HEAD.FEAT_CHANNELS = 256
+_C.MM.BBOX_HEAD.USE_DIRECTION_CLASSIFIER = True
+
+_C.MM.BBOX_HEAD.ANCHOR_GENERATOR = CN()
+
+_C.MM.BBOX_HEAD.ASSIGNER_PER_SIZE = False
+_C.MM.BBOX_HEAD.DIFF_RAD_BY_SIN = True
+_C.MM.BBOX_HEAD.DIR_OFFSET = 0.7854
+_C.MM.BBOX_HEAD.DIR_LIMIT_OFFSET = 0
+
+_C.MM.BBOX_HEAD.BBOX_CODER = CN()
+_C.MM.BBOX_HEAD.BBOX_CODER.TYPE = 'DeltaXYZWLHRBBoxCoder'
+_C.MM.BBOX_HEAD.BBOX_CODER.CODE_SIZE = 9
+
+_C.MM.BBOX_HEAD.LOSS_CLS = CN()
+_C.MM.BBOX_HEAD.LOSS_CLS.TYPE = 'FocalLoss'
+_C.MM.BBOX_HEAD.LOSS_CLS.USE_SIGMOID = False
+_C.MM.BBOX_HEAD.LOSS_CLS.GAMMA = 2.0
+_C.MM.BBOX_HEAD.LOSS_CLS.ALPHA = 0.25
+_C.MM.BBOX_HEAD.LOSS_CLS.LOSS_WEIGHT = 1.0
+
+_C.MM.BBOX_HEAD.LOSS_BBOX = CN()
+_C.MM.BBOX_HEAD.LOSS_BBOX.TYPE = 'SmoothL1Loss'
+_C.MM.BBOX_HEAD.LOSS_BBOX.BETA = 1.0 / 9.0
+_C.MM.BBOX_HEAD.LOSS_BBOX.LOSS_WEIGHT = 1.0
+
+_C.MM.BBOX_HEAD.LOSS_DIR = CN()
+_C.MM.BBOX_HEAD.LOSS_DIR.TYPE = 'CrossEntropyLoss'
+_C.MM.BBOX_HEAD.LOSS_DIR.USE_SIGMOID = False
+_C.MM.BBOX_HEAD.LOSS_DIR.LOSS_WEIGHT = 0.2
 
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Fiery training')
     # TODO: remove below?
     parser.add_argument('--config-file', default='', metavar='FILE', help='path to config file')
+    parser.add_argument('--eval-path', help='eval model path')
     parser.add_argument(
         'opts', help='Modify config options using the command-line', default=None, nargs=argparse.REMAINDER,
     )

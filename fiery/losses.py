@@ -87,8 +87,8 @@ class ProbabilisticLoss(nn.Module):
         var_future = torch.exp(2 * future_log_sigma)
         var_present = torch.exp(2 * present_log_sigma)
         kl_div = (
-                present_log_sigma - future_log_sigma - 0.5 + (var_future + (future_mu - present_mu) ** 2) / (
-                    2 * var_present)
+            present_log_sigma - future_log_sigma - 0.5 + (var_future + (future_mu - present_mu) ** 2) / (
+                2 * var_present)
         )
 
         kl_loss = torch.mean(torch.sum(kl_div, dim=-1))

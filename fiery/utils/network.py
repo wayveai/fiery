@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torchvision
 
+
 def pack_sequence_dim(x):
     b, s = x.shape[:2]
     return x.view(b * s, *x.shape[2:])
@@ -13,7 +14,7 @@ def unpack_sequence_dim(x, b, s):
 
 def preprocess_batch(batch, device, unsqueeze=False):
     for key, value in batch.items():
-        if key != 'sample_token':
+        if key not in ['sample_token', 'centerness', 'offset', 'flow', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas', ]:
             batch[key] = value.to(device)
             if unsqueeze:
                 batch[key] = batch[key].unsqueeze(0)

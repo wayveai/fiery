@@ -1,13 +1,13 @@
 from typing import Optional
 
 import torch
-from pytorch_lightning.metrics.metric import Metric
-from pytorch_lightning.metrics.functional.classification import stat_scores_multiple_classes
-from pytorch_lightning.metrics.functional.reduction import reduce
+from torchmetrics import Metric
+from torchmetrics.functional import stat_scores
 
 
 class IntersectionOverUnion(Metric):
     """Computes intersection-over-union."""
+
     def __init__(
         self,
         n_classes: int,
@@ -29,7 +29,7 @@ class IntersectionOverUnion(Metric):
         self.add_state('support', default=torch.zeros(n_classes), dist_reduce_fx='sum')
 
     def update(self, prediction: torch.Tensor, target: torch.Tensor):
-        tps, fps, _, fns, sups = stat_scores_multiple_classes(prediction, target, self.n_classes)
+        tps, fps, _, fns, sups = stat_scores(prediction, target, num_classes=self.n_classes, mdmc_reduce='global')
 
         self.true_positive += tps
         self.false_positive += fps
@@ -60,9 +60,9 @@ class IntersectionOverUnion(Metric):
 
         # Remove the ignored class index from the scores.
         if (self.ignore_index is not None) and (0 <= self.ignore_index < self.n_classes):
-            scores = torch.cat([scores[:self.ignore_index], scores[self.ignore_index+1:]])
+            scores = torch.cat([scores[:self.ignore_index], scores[self.ignore_index + 1:]])
 
-        return reduce(scores, reduction=self.reduction)
+        return scores
 
 
 class PanopticMetric(Metric):
@@ -127,10 +127,11 @@ class PanopticMetric(Metric):
         sq = self.iou / torch.maximum(self.true_positive, torch.ones_like(self.true_positive))
         rq = self.true_positive / denominator
 
+        # If 0, it means there wasn't any detection.
+
         return {'pq': pq,
                 'sq': sq,
                 'rq': rq,
-                # If 0, it means there wasn't any detection.
                 'denominator': (self.true_positive + self.false_positive / 2 + self.false_negative / 2),
                 }
 
@@ -157,7 +158,7 @@ class PanopticMetric(Metric):
         n_all_things = n_instances + n_classes  # Classes + instances.
         n_things_and_void = n_all_things + 1
 
-        # Now 1 is background; 0 is void (not used). 2 is vehicle semantic class but since it overlaps with
+        # Now 1 is background; 0 is void (not used). 2 is vehicle semantic class but since it overlaps with
         # instances, it is not present.
         # and the rest are instance ids starting from 3
         prediction, pred_to_cls = self.combine_mask(pred_segmentation, pred_instance, n_classes, n_all_things)
