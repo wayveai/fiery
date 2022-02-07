@@ -1,0 +1,60 @@
+MODEL:
+  MM:
+    BBOX_HEAD:
+      type: Anchor3DHead
+      anchor_generator:
+        type: AlignedAnchor3DRangeGenerator
+        ranges: [[-50, -50, -1.8, 50, 50, -1.8]]
+        reshape_out: true
+        rotations: [0, 1.57]
+        scales: [1, 2, 4]
+        sizes: [
+            [0.866, 2.5981, 1.0], # 1.5/sqrt(3)
+            [0.5774, 1.7321, 1.0], # 1/sqrt(3)
+            [1.0, 1.0, 1.0],
+            [0.4, 0.4, 1],
+          ]
+      assigner_per_size: false
+      bbox_coder:
+        type: DeltaXYZWLHRBBoxCoder
+      diff_rad_by_sin: true
+      dir_limit_offset: 0
+      dir_offset: 0.7854 # pi/4
+      feat_channels: 256
+      in_channels: 256
+      loss_bbox:
+        type: SmoothL1Loss
+        beta: 0.1111111111111111
+        loss_weight: 1.0
+      loss_cls:
+        type: FocalLoss
+        alpha: 0.25
+        gamma: 2.0
+        loss_weight: 1.0
+        use_sigmoid: true
+      loss_dir:
+        type: CrossEntropyLoss
+        loss_weight: 0.2
+        use_sigmoid: false
+      num_classes: 10
+      test_cfg:
+        max_num: 500
+        min_bbox_size: 0
+        nms_across_levels: false
+        nms_pre: 1000
+        nms_thr: 0.2
+        score_thr: 0.05
+        use_rotate_nms: true
+      train_cfg:
+        allowed_border: 0
+        assigner:
+          type: MaxIoUAssigner
+          ignore_iof_thr: -1
+          iou_calculator:
+            type: BboxOverlapsNearest3D
+          min_pos_iou: 0.3
+          neg_iou_thr: 0.3
+          pos_iou_thr: 0.6
+        debug: false
+        pos_weight: -1
+      use_direction_classifier: true

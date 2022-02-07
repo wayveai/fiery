@@ -10,10 +10,7 @@ from fiery.models.decoder import Decoder
 from fiery.utils.network import pack_sequence_dim, unpack_sequence_dim, set_bn_momentum
 from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_view_parameters, VoxelsSumming
 
-from mmcv import Config
-from mmdet3d.models.dense_heads import Anchor3DHead
-from mmdet3d.models.backbones import SECOND
-from mmdet.models.necks.fpn import FPN
+from mmdet3d.models import build_head, build_backbone, build_neck
 
 
 class Fiery(nn.Module):
@@ -111,84 +108,9 @@ class Fiery(nn.Module):
             predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
         )
 
-        self.detection_backbone = SECOND(
-            **Config(
-                dict(
-                    in_channels=64,
-                    norm_cfg=dict(type='naiveSyncBN2d', eps=1e-3, momentum=0.01),
-                    layer_nums=[3, 5, 5],
-                    layer_strides=[2, 2, 2],
-                    out_channels=[64, 128, 256],
-                )
-            )
-        )
-        self.detection_neck = FPN(
-            **Config(
-                dict(
-                    norm_cfg=dict(type='naiveSyncBN2d', eps=1e-3, momentum=0.01),
-                    act_cfg=dict(type='ReLU'),
-                    in_channels=[64, 128, 256],
-                    out_channels=256,
-                    start_level=0,
-                    num_outs=3,
-                )
-            )
-        )
-        self.detection_head = Anchor3DHead(
-            **Config(
-                dict(
-                    num_classes=10,
-                    in_channels=256,
-                    feat_channels=256,
-                    use_direction_classifier=True,
-                    anchor_generator=dict(
-                        type='AlignedAnchor3DRangeGenerator',
-                        ranges=[[-50, -50, -1.8, 50, 50, -1.8]],
-                        scales=[1, 2, 4],
-                        sizes=[
-                            [0.8660, 2.5981, 1.],  # 1.5/sqrt(3)
-                            [0.5774, 1.7321, 1.],  # 1/sqrt(3)
-                            [1., 1., 1.],
-                            [0.4, 0.4, 1],
-                        ],
-                        rotations=[0, 1.57],
-                        reshape_out=True),
-                    assigner_per_size=False,
-                    diff_rad_by_sin=True,
-                    dir_offset=0.7854,  # pi/4
-                    dir_limit_offset=0,
-                    bbox_coder=dict(type='DeltaXYZWLHRBBoxCoder'),
-                    loss_cls=dict(
-                        type='FocalLoss',
-                        use_sigmoid=True,
-                        gamma=2.0,
-                        alpha=0.25,
-                        loss_weight=1.0),
-                    loss_bbox=dict(type='SmoothL1Loss', beta=1.0 / 9.0, loss_weight=1.0),
-                    loss_dir=dict(
-                        type='CrossEntropyLoss', use_sigmoid=False, loss_weight=0.2),
-                    train_cfg=dict(
-                        assigner=dict(
-                            type='MaxIoUAssigner',
-                            iou_calculator=dict(type='BboxOverlapsNearest3D'),
-                            pos_iou_thr=0.6,
-                            neg_iou_thr=0.3,
-                            min_pos_iou=0.3,
-                            ignore_iof_thr=-1),
-                        allowed_border=0,
-                        pos_weight=-1,
-                        debug=False),
-                    test_cfg=dict(
-                        use_rotate_nms=True,
-                        nms_across_levels=False,
-                        nms_pre=1000,
-                        nms_thr=0.2,
-                        score_thr=0.05,
-                        min_bbox_size=0,
-                        max_num=500),
-                )
-            )
-        )
+        self.detection_backbone = build_backbone(self.cfg.MODEL.MM.BBOX_BACKBONE)
+        self.detection_neck = build_neck(self.cfg.MODEL.MM.BBOX_NECK)
+        self.detection_head = build_head(self.cfg.MODEL.MM.BBOX_HEAD)
 
         set_bn_momentum(self, self.cfg.MODEL.BN_MOMENTUM)
         if self.cfg.LOSS.SEG_USE is True:

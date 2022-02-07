@@ -1,4 +1,8 @@
 import argparse
+import logging
+import os
+from typing import Any, Dict
+import yaml
 from fvcore.common.config import CfgNode as _CfgNode
 
 
@@ -22,6 +26,72 @@ def convert_to_dict(cfg_node, key_list=[]):
 
 class CfgNode(_CfgNode):
     """Remove once https://github.com/rbgirshick/yacs/issues/19 is merged."""
+    BASE_KEY = "_BASE_"
+
+    @classmethod
+    def load_yaml_with_base(cls, filename: str, allow_unsafe: bool = False) -> None:
+        """
+        Just like `yaml.load(open(filename))`, but inherit attributes from its
+            `_BASE_`.
+
+        Args:
+            filename (str or file-like object): the file name or file of the current config.
+                Will be used to find the base config file.
+            allow_unsafe (bool): whether to allow loading the config file with
+                `yaml.unsafe_load`.
+
+        Returns:
+            (dict): the loaded yaml
+        """
+        with cls._open_cfg(filename) as f:
+            try:
+                cfg = yaml.safe_load(f)
+            except yaml.constructor.ConstructorError:
+                if not allow_unsafe:
+                    raise
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    "Loading config {} with yaml.unsafe_load. Your machine may "
+                    "be at risk if the file contains malicious content.".format(
+                        filename
+                    )
+                )
+                f.close()
+                with cls._open_cfg(filename) as f:
+                    cfg = yaml.unsafe_load(f)  # pyre-ignore
+
+        # pyre-ignore
+        def merge_a_into_b(a: Dict[Any, Any], b: Dict[Any, Any]) -> None:
+            # merge dict a into dict b. values in a will overwrite b.
+            for k, v in a.items():
+                if isinstance(v, dict) and k in b:
+                    assert isinstance(
+                        b[k], dict
+                    ), "Cannot inherit key '{}' from base!".format(k)
+                    merge_a_into_b(v, b[k])
+                else:
+                    b[k] = v
+
+        if cls.BASE_KEY in cfg:
+            base_cfg_files = cfg[cls.BASE_KEY]
+            del cfg[cls.BASE_KEY]
+            if isinstance(base_cfg_files, str):
+                base_cfg_files = [base_cfg_files]
+
+            merged_cfg = CfgNode(new_allowed=True)
+
+            for base_cfg_file in base_cfg_files:
+                if base_cfg_file.startswith("~"):
+                    base_cfg_file = os.path.expanduser(base_cfg_file)
+                if not any(map(base_cfg_file.startswith, ["/", "https://", "http://"])):
+                    # the path to base cfg is relative to the config file itself.
+                    base_cfg_file = os.path.join(os.path.dirname(filename), base_cfg_file)
+                base_cfg = cls.load_yaml_with_base(base_cfg_file, allow_unsafe=allow_unsafe)
+
+                merge_a_into_b(base_cfg, merged_cfg)
+            merge_a_into_b(cfg, merged_cfg)
+            return merged_cfg
+        return cfg
 
     def convert_to_dict(self):
         return convert_to_dict(self)
@@ -106,6 +176,11 @@ _C.MODEL.FUTURE_PRED.N_RES_LAYERS = 3
 
 _C.MODEL.DECODER = CN()
 
+_C.MODEL.MM = CN()
+_C.MODEL.MM.BBOX_BACKBONE = CN(new_allowed=True)
+_C.MODEL.MM.BBOX_NECK = CN(new_allowed=True)
+_C.MODEL.MM.BBOX_HEAD = CN(new_allowed=True)
+
 _C.MODEL.BN_MOMENTUM = 0.1
 _C.MODEL.SUBSAMPLE = False  # Subsample frames for Lyft
 
@@ -152,46 +227,6 @@ _C.LOSS.OBJ_LOSS_WEIGHT.ANG = 0.25
 _C.OBJ = CN()
 _C.OBJ.N_CLASSES = 1
 _C.OBJ.HEAD_NAME = 'mm'
-# mmdetection3d
-_C.MM = CN()
-_C.MM.POINT_CLOUD_RANGE = [-50, -50, -5, 50, 50, 3]
-
-_C.MM.OBJ = CN()
-
-_C.MM.BBOX_HEAD = CN()
-_C.MM.BBOX_HEAD.TYPE = 'Anchor3DHead'
-_C.MM.BBOX_HEAD.NUM_CLASSES = 10
-_C.MM.BBOX_HEAD.IN_CHANNELS = 256
-_C.MM.BBOX_HEAD.FEAT_CHANNELS = 256
-_C.MM.BBOX_HEAD.USE_DIRECTION_CLASSIFIER = True
-
-_C.MM.BBOX_HEAD.ANCHOR_GENERATOR = CN()
-
-_C.MM.BBOX_HEAD.ASSIGNER_PER_SIZE = False
-_C.MM.BBOX_HEAD.DIFF_RAD_BY_SIN = True
-_C.MM.BBOX_HEAD.DIR_OFFSET = 0.7854
-_C.MM.BBOX_HEAD.DIR_LIMIT_OFFSET = 0
-
-_C.MM.BBOX_HEAD.BBOX_CODER = CN()
-_C.MM.BBOX_HEAD.BBOX_CODER.TYPE = 'DeltaXYZWLHRBBoxCoder'
-_C.MM.BBOX_HEAD.BBOX_CODER.CODE_SIZE = 9
-
-_C.MM.BBOX_HEAD.LOSS_CLS = CN()
-_C.MM.BBOX_HEAD.LOSS_CLS.TYPE = 'FocalLoss'
-_C.MM.BBOX_HEAD.LOSS_CLS.USE_SIGMOID = False
-_C.MM.BBOX_HEAD.LOSS_CLS.GAMMA = 2.0
-_C.MM.BBOX_HEAD.LOSS_CLS.ALPHA = 0.25
-_C.MM.BBOX_HEAD.LOSS_CLS.LOSS_WEIGHT = 1.0
-
-_C.MM.BBOX_HEAD.LOSS_BBOX = CN()
-_C.MM.BBOX_HEAD.LOSS_BBOX.TYPE = 'SmoothL1Loss'
-_C.MM.BBOX_HEAD.LOSS_BBOX.BETA = 1.0 / 9.0
-_C.MM.BBOX_HEAD.LOSS_BBOX.LOSS_WEIGHT = 1.0
-
-_C.MM.BBOX_HEAD.LOSS_DIR = CN()
-_C.MM.BBOX_HEAD.LOSS_DIR.TYPE = 'CrossEntropyLoss'
-_C.MM.BBOX_HEAD.LOSS_DIR.USE_SIGMOID = False
-_C.MM.BBOX_HEAD.LOSS_DIR.LOSS_WEIGHT = 0.2
 
 
 def get_parser():

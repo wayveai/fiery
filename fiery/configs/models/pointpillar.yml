@@ -1,0 +1,1 @@
+_BASE_: ["backbones/SECOND.yml", "necks/FPN.yml", "heads/Anchor3DHead.yml"]
