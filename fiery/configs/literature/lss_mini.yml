@@ -5,7 +5,7 @@ EVA_DIR: 'output_dir/lss_mini'
 # EVALUATION: False
 
 GPUS: [0]
-EPOCHS: 1
+EPOCHS: 10
 BATCHSIZE: 6
 N_WORKERS: 8
 VALID_FREQ: 1.0 
@@ -27,7 +27,7 @@ IMAGE:
   N_CAMERA: 6
 
 LOSS:
-  SEG_USE: False
+  SEG_USE: True
 
 OBJ:
   HEAD_NAME: 'mm'

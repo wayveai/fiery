@@ -339,7 +339,7 @@ class TrainingModule(pl.LightningModule):
         # if prefix == 'val':
         # name = name + f'_{batch_idx}'
         self.logger.experiment.add_video(
-            name, visualisation_video, global_step=self.training_step_count, fps=2)
+            name, visualisation_video, global_step=self.global_step, fps=2)
 
     #####
     # training_step
