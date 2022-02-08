@@ -1,0 +1,14 @@
+MODEL:
+  MM:
+    BBOX_NECK:
+      type: FPN
+      act_cfg: 
+        type: ReLU
+      in_channels: [64, 128, 256]
+      norm_cfg: 
+        type: naiveSyncBN2d
+        eps: 0.001
+        momentum: 0.01
+      num_outs: 3
+      out_channels: 256
+      start_level: 0

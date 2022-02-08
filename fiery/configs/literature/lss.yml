@@ -1,4 +1,4 @@
-_BASE_: "../single_timeframe.yml"
+_BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss"
@@ -13,9 +13,9 @@ GRAD_NORM_CLIP: 10
 
 DATASET:
   DATAROOT: "/home/master/10/cytseng/data/sets/nuscenes/"
-  FILTER_INVISIBLE_VEHICLES: False
+  FILTER_INVISIBLE_VEHICLES: True
   VERSION: "v1.0-trainval"
-  TRAINING_SAMPLES: 7000
+  TRAINING_SAMPLES: -1
   VALIDATING_SAMPLES: 2000
 
 LIFT:
@@ -27,7 +27,7 @@ IMAGE:
   N_CAMERA: 6
 
 LOSS:
-  SEG_USE: False
+  SEG_USE: True
 
 OBJ:
   HEAD_NAME: "mm"
