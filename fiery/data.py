@@ -59,6 +59,7 @@ general_to_detection = {
     # "movable_object.debris": "ignore",
     # "static_object.bicycle_rack": "ignore",
 }
+
 NUSCENE_CLASS_NAMES = [
     'car',
     'truck',
@@ -342,16 +343,18 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         objects = list()
         boxes = []
         for annotation_token in rec['anns']:
-            # Filter out all non vehicle instances
+            # Filter out all non vehicle instances -> no -> for all classes !!
             annotation = self.nusc.get('sample_annotation', annotation_token)
 
             if not self.is_lyft:
                 # NuScenes filter
-                if self.cfg.LOSS.SEG_USE is True:
-                    if 'vehicle' not in annotation['category_name']:
-                        continue
-                    if self.cfg.DATASET.FILTER_INVISIBLE_VEHICLES and int(annotation['visibility_token']) == 1:
-                        continue
+
+                # if self.cfg.LOSS.SEG_USE is True:
+                #     if 'vehicle' not in annotation['category_name']:
+                #         continue
+                #     if self.cfg.DATASET.FILTER_INVISIBLE_VEHICLES and int(annotation['visibility_token']) == 1:
+                #         continue
+
                 if annotation['category_name'] not in general_to_detection:
                     continue
                 if self.cfg.DATASET.FILTER_INVISIBLE_VEHICLES and int(annotation['visibility_token']) == 1:

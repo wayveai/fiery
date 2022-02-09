@@ -198,7 +198,7 @@ class Fiery(nn.Module):
         if self.n_future > 0:
             bev_output = self.decoder(future_states)
             detection_input = future_states.flatten(0, 1)
-            cls_scores, bbox_preds, dir_cls_preds = self.detection_head([future_states])
+            # cls_scores, bbox_preds, dir_cls_preds = self.detection_head([future_states])
         else:
             bev_output = self.decoder(states[:, -1:])
             detection_input = states[:, -1:].flatten(0, 1)
