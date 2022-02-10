@@ -4,12 +4,13 @@ TAG: "lss"
 EVA_DIR: "output_dir/lss_mini"
 # EVALUATION: False
 
-GPUS: [0]
+GPUS: [0, 1, 2]
 EPOCHS: 40
 BATCHSIZE: 3
-N_WORKERS: 6
+N_WORKERS: 8
 VALID_FREQ: 1.0
 GRAD_NORM_CLIP: 10
+CKPT_PATH: None
 
 DATASET:
   DATAROOT: "/home/master/10/cytseng/data/sets/nuscenes/"

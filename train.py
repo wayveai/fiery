@@ -60,11 +60,10 @@ def main():
         profiler='simple',
 
         # callbacks=checkpoint_callback,
-        # resume_from_checkpoint=checkpoint_path,                                                              h,
     )
 
     if args.eval_path is None:
-        trainer.fit(model, trainloader, valloader)
+        trainer.fit(model=model, train_dataloaders=trainloader, val_dataloaders=valloader, ckpt_path=cfg.CKPT_PATH)
         trainer.test(dataloaders=testloader, ckpt_path='best', verbose=False)
 
     else:
