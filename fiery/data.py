@@ -384,6 +384,10 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             cv2.fillPoly(z_position, [poly_region], z)
             cv2.fillPoly(attribute_label, [poly_region], instance_attribute)
 
+            # print("instance: ", instance.shape)
+            print("segmentation: ", segmentation)
+            # print("z_position: ", z_position.shape)
+
             objects.append(
                 ObjectData(
                     classname=general_to_detection[box.name],
