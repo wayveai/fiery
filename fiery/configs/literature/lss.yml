@@ -10,7 +10,8 @@ BATCHSIZE: 3
 N_WORKERS: 8
 VALID_FREQ: 1.0 
 GRAD_NORM_CLIP: 10
-CKPT_PATH: '/home/master/10/cytseng/fiery/tensorboard_logs/lss_mm_cam_6_imgSize_336_720_segLoss/version_0/checkpoints/epoch=4-step=11719.ckpt'
+CKPT_PATH: None
+# CKPT_PATH: '/home/master/10/cytseng/fiery/tensorboard_logs/lss_mm_cam_6_imgSize_336_720_segLoss/version_0/checkpoints/epoch=4-step=11719.ckpt'
 
 DATASET:
   DATAROOT: "/home/master/10/cytseng/data/sets/nuscenes/"
