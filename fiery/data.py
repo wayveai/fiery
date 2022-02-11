@@ -378,14 +378,18 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
                                                                  rotation,
                                                                  rec['token'],
                                                                  )
+            if self.cfg.SEMANTIC_SEG.NUSCENE_CLASS:
+                cv2.fillPoly(segmentation, [poly_region], NUSCENE_CLASS_NAMES.index(
+                    general_to_detection[box.name]) + 1.0)
+            else:
+                cv2.fillPoly(segmentation, [poly_region], 1.0)
 
             cv2.fillPoly(instance, [poly_region], instance_id)
-            cv2.fillPoly(segmentation, [poly_region], 1.0)
             cv2.fillPoly(z_position, [poly_region], z)
             cv2.fillPoly(attribute_label, [poly_region], instance_attribute)
 
             # print("instance: ", instance.shape)
-            print("segmentation: ", segmentation)
+            # print("segmentation: ", segmentation.shape)
             # print("z_position: ", z_position.shape)
 
             objects.append(
