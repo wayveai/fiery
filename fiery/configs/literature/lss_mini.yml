@@ -1,4 +1,5 @@
-_BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
+_BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
+# _BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss_mini"
@@ -6,11 +7,11 @@ EVA_DIR: "output_dir/lss_mini"
 
 GPUS: [0, 1, 2]
 EPOCHS: 40
-BATCHSIZE: 3
+BATCHSIZE: 2
 N_WORKERS: 8
 VALID_FREQ: 1.0
 GRAD_NORM_CLIP: 10
-CKPT_PATH: None
+CKPT_PATH: null
 
 DATASET:
   DATAROOT: "/home/master/10/cytseng/data/sets/nuscenes/"
@@ -26,9 +27,9 @@ LIFT:
 
 IMAGE:
   N_CAMERA: 6
-  FINAL_DIM: [336, 720]
-  RESIZE_SCALE: 0.45
-  TOP_CROP: 69
+  # FINAL_DIM: [336, 720]
+  # RESIZE_SCALE: 0.45
+  # TOP_CROP: 69
 
 LOSS:
   SEG_USE: True

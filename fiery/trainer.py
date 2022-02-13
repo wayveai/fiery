@@ -270,15 +270,16 @@ class TrainingModule(pl.LightningModule):
         if self.cfg.OBJ.HEAD_NAME == 'oft':
             loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
-            loss_dict = self.model.detection_head.loss(
-                output['detection_output']['cls_scores'],
-                output['detection_output']['bbox_preds'],
-                output['detection_output']['dir_cls_preds'],
-                gt_bboxes=[item[0] for item in batch['gt_bboxes_3d']],
-                gt_labels=[item[0] for item in batch['gt_labels_3d']],
-                input_metas=[item[0] for item in batch['input_metas']],
-            )
-            loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
+            detection_output = output['detection_output']
+            # detection_output += (
+            #     [item[0] for item in batch['gt_bboxes_3d']],
+            #     [item[0] for item in batch['gt_labels_3d']],
+            #     [item[0] for item in batch['input_metas']],
+            # )
+            detection_output = [[item[0] for item in batch['gt_bboxes_3d']], [item[0] for item in batch['gt_labels_3d']], detection_output]
+            loss_dict = self.model.detection_head.loss(*detection_output)
+            loss_dict = {key: loss_tensor.mean() for key, loss_tensor in loss_dict.items()}
+            # loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
             loss = torch.stack([loss_value for loss_value in loss_dict.values()]).sum()
             loss_dict['total'] = loss
 
@@ -414,11 +415,15 @@ class TrainingModule(pl.LightningModule):
                 tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
                 pred_bboxes_list = self.model.detection_head.get_bboxes(
-                    output['detection_output']['cls_scores'],
-                    output['detection_output']['bbox_preds'],
-                    output['detection_output']['dir_cls_preds'],
+                    output['detection_output'],
                     [item[0] for item in batch['input_metas']],
                 )
+                # pred_bboxes_list = self.model.detection_head.get_bboxes(
+                #     output['detection_output']['cls_scores'],
+                #     output['detection_output']['bbox_preds'],
+                #     output['detection_output']['dir_cls_preds'],
+                #     [item[0] for item in batch['input_metas']],
+                # )
                 pred_bboxes_list = [
                     bbox3d2result(bboxes, scores, labels)
                     for bboxes, scores, labels in pred_bboxes_list

@@ -1,0 +1,12 @@
+_BASE_: ["backbones/SECOND.yml", "necks/SECONDFPN.yml", "heads/CenterHead.yml"]
+
+MODEL:
+  MM:
+    BBOX_BACKBONE:
+      norm_cfg:
+        type: 'BN'
+        eps: 0.001
+        momentum: 0.01
+      conv_cfg:
+        type: 'Conv2d'
+        bias: False
