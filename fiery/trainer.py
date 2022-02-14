@@ -40,7 +40,14 @@ class TrainingModule(pl.LightningModule):
         # pytorch lightning does not support saving YACS CfgNone
         cfg = get_cfg(cfg_dict=self.hparams)
         self.cfg = cfg
-        self.n_classes = len(self.cfg.SEMANTIC_SEG.WEIGHTS)
+
+        if self.cfg.SEMANTIC_SEG.NUSCENE_CLASS:
+            SEMANTIC_SEG_WEIGHTS = [1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+        else:
+            SEMANTIC_SEG_WEIGHTS = [1.0, 2.0]
+
+        # self.n_classes = len(self.cfg.SEMANTIC_SEG.WEIGHTS)
+        self.n_classes = len(SEMANTIC_SEG_WEIGHTS)
 
         # Bird's-eye view extent in meters
         assert self.cfg.LIFT.X_BOUND[1] > 0 and self.cfg.LIFT.Y_BOUND[1] > 0
@@ -52,8 +59,11 @@ class TrainingModule(pl.LightningModule):
 
         # Losses
         self.losses_fn = nn.ModuleDict()
+
         self.losses_fn['segmentation'] = SegmentationLoss(
-            class_weights=torch.Tensor(self.cfg.SEMANTIC_SEG.WEIGHTS),
+            # class_weights=torch.Tensor(self.cfg.SEMANTIC_SEG.WEIGHTS),
+            class_weights=torch.Tensor(SEMANTIC_SEG_WEIGHTS),
+
             use_top_k=self.cfg.SEMANTIC_SEG.USE_TOP_K,
             top_k_ratio=self.cfg.SEMANTIC_SEG.TOP_K_RATIO,
             future_discount=self.cfg.FUTURE_DISCOUNT,

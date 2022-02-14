@@ -203,7 +203,17 @@ def plot_instance_map(instance_image, instance_map, instance_colours=None, bg_im
 
 
 def visualise_output(labels, output, cfg):
-    semantic_colours = np.array([[255, 255, 255], [0, 0, 0]], dtype=np.uint8)
+    # semantic_colours = np.array([[255, 255, 255], [0, 0, 0]], dtype=np.uint8)
+    semantic_colours = np.array([[255, 255, 255], [0, 0, 0],
+                                 [255, 179, 0],
+                                 [128, 62, 117],
+                                 [255, 104, 0],
+                                 [166, 189, 215],
+                                 [193, 0, 32],
+                                 [206, 162, 98],
+                                 [129, 112, 102],
+                                 [0, 125, 52],
+                                 [246, 118, 142]], dtype=np.uint8)
 
     consistent_instance_seg = predict_instance_segmentation_and_trajectories(
         output, compute_matched_centers=False
