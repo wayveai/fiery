@@ -31,17 +31,16 @@ def main():
     #     cfg.LOG_DIR, time.strftime('%d%B%Yat%H:%M:%S%Z') + '_' + socket.gethostname() + '_' + cfg.TAG
     # )
     save_dir_tags = [cfg.TAG, cfg.OBJ.HEAD_NAME, f'cam_{cfg.IMAGE.N_CAMERA}',
-                     f'imgSize_{cfg.IMAGE.FINAL_DIM[0]}_{cfg.IMAGE.FINAL_DIM[1]}']
+                     f'imgSize_{cfg.IMAGE.FINAL_DIM[0]}_{cfg.IMAGE.FINAL_DIM[1]}',
+                     f'resolution_{cfg.LIFT.X_BOUND[2]}_{cfg.LIFT.Y_BOUND[2]}']
     if cfg.LOSS.SEG_USE is True:
         save_dir_tags.append('segLoss')
-        
+
     if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
         save_dir_tags.append('semantic')
 
     if cfg.DATASET.VERSION == 'v1.0-mini':
         save_dir_tags.append('mini')
-
-
 
     save_dir = os.path.join(cfg.LOG_DIR, '_'.join(save_dir_tags))
     tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir, name=None)
@@ -66,6 +65,9 @@ def main():
 
         # callbacks=checkpoint_callback,
     )
+
+    # args.eval_path = '/home/master/10/cytseng/fiery/tensorboard_logs/lss_mm_cam_6_imgSize_224_480_segLoss_semantic/version_0/checkpoints/37.ckpt'
+    # args.eval_path = '/home/master/10/cytseng/fiery/tensorboard_logs/lss_mm_cam_6_imgSize_336_720_segLoss/version_1/checkpoints/20.ckpt'
 
     if args.eval_path is None:
         trainer.fit(model=model, train_dataloaders=trainloader, val_dataloaders=valloader, ckpt_path=cfg.CKPT_PATH)
