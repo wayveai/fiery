@@ -271,15 +271,7 @@ class TrainingModule(pl.LightningModule):
             loss, loss_dict = compute_loss(pre_encoded, gt_encoded)
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
             detection_output = output['detection_output']
-            # detection_output += (
-            #     [item[0] for item in batch['gt_bboxes_3d']],
-            #     [item[0] for item in batch['gt_labels_3d']],
-            #     [item[0] for item in batch['input_metas']],
-            # )
-            detection_output = [[item[0] for item in batch['gt_bboxes_3d']], [item[0] for item in batch['gt_labels_3d']], detection_output]
-            loss_dict = self.model.detection_head.loss(*detection_output)
-            loss_dict = {key: loss_tensor.mean() for key, loss_tensor in loss_dict.items()}
-            # loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
+            loss_dict = self.model.detection_head.loss(batch, detection_output)
             loss = torch.stack([loss_value for loss_value in loss_dict.values()]).sum()
             loss_dict['total'] = loss
 
@@ -414,16 +406,7 @@ class TrainingModule(pl.LightningModule):
                 tokens = batch['sample_token']
                 tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
-                pred_bboxes_list = self.model.detection_head.get_bboxes(
-                    output['detection_output'],
-                    [item[0] for item in batch['input_metas']],
-                )
-                # pred_bboxes_list = self.model.detection_head.get_bboxes(
-                #     output['detection_output']['cls_scores'],
-                #     output['detection_output']['bbox_preds'],
-                #     output['detection_output']['dir_cls_preds'],
-                #     [item[0] for item in batch['input_metas']],
-                # )
+                pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
                 pred_bboxes_list = [
                     bbox3d2result(bboxes, scores, labels)
                     for bboxes, scores, labels in pred_bboxes_list
@@ -587,12 +570,7 @@ class TrainingModule(pl.LightningModule):
             elif self.cfg.OBJ.HEAD_NAME == 'mm':
                 assert 'output' in outputs
                 output = outputs['output']
-                pred_bboxes_list = self.model.detection_head.get_bboxes(
-                    output['detection_output']['cls_scores'],
-                    output['detection_output']['bbox_preds'],
-                    output['detection_output']['dir_cls_preds'],
-                    [item[0] for item in batch['input_metas']],
-                )
+                pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
                 pred_bboxes_list = [
                     bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
                     for bboxes, scores, labels in pred_bboxes_list
@@ -704,49 +682,9 @@ class TrainingModule(pl.LightningModule):
         # Visualzation
         if self.cfg.OBJ.HEAD_NAME == 'oft':
             pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
-            # self.logger.experiment.add_figure(
-            #     'oft_val_visualize_bev',
-            #     visualize_bev(
-            #         objects,
-            #         gt_encoded[0],
-            #         pre_objects,
-            #         pre_encoded[0],
-            #         grids
-            #     ),
-            #     global_step=self.global_step
-            # )
             output_dict['pred_objects'] = pre_objects
 
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
-            # if batch_idx == 0:
-            #     tokens = batch['sample_token']
-            #     tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
-
-            #     pred_bboxes_list = self.model.detection_head.get_bboxes(
-            #         output['detection_output']['cls_scores'],
-            #         output['detection_output']['bbox_preds'],
-            #         output['detection_output']['dir_cls_preds'],
-            #         [item[0] for item in batch['input_metas']],
-            #     )
-            #     pred_bboxes_list = [
-            #         bbox3d2result(bboxes, scores, labels)
-            #         for bboxes, scores, labels in pred_bboxes_list
-            #     ]
-            #     for detection, token in zip(pred_bboxes_list, tokens):
-            #         pred_boxes = output_to_nusc_box(detection, token)
-            #         # print("pred_boxes: ", pred_boxes)
-
-            #         self.logger.experiment.add_figure(
-            #             'mm_val_visualize_bev',
-            #             visualize_sample(
-            #                 nusc=self.nusc,
-            #                 sample_token=token,
-            #                 pred_boxes=pred_boxes,
-            #             ),
-            #             global_step=self.global_step
-            #         )
-            #         break
-
             output_dict['output'] = output
 
         return output_dict
@@ -763,12 +701,7 @@ class TrainingModule(pl.LightningModule):
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
             assert 'output' in outputs
             output = outputs['output']
-            pred_bboxes_list = self.model.detection_head.get_bboxes(
-                output['detection_output']['cls_scores'],
-                output['detection_output']['bbox_preds'],
-                output['detection_output']['dir_cls_preds'],
-                [item[0] for item in batch['input_metas']],
-            )
+            pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
             pred_bboxes_list = [
                 bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
                 for bboxes, scores, labels in pred_bboxes_list

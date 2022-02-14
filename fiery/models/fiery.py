@@ -9,7 +9,8 @@ from fiery.models.future_prediction import FuturePrediction
 from fiery.models.decoder import Decoder
 from fiery.utils.network import pack_sequence_dim, unpack_sequence_dim, set_bn_momentum
 from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_view_parameters, VoxelsSumming
-
+from fiery.models.head_wrappers.CenterHeadWrapper import CenterHeadWrapper
+from fiery.models.head_wrappers.Anchor3DHeadWrapper import Anchor3DHeadWrapper
 from mmdet3d.models import build_head, build_backbone, build_neck
 
 

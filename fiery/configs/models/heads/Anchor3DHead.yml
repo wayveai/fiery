@@ -1,7 +1,7 @@
 MODEL:
   MM:
     BBOX_HEAD:
-      type: Anchor3DHead
+      type: Anchor3DHeadWrapper
       anchor_generator:
         type: AlignedAnchor3DRangeGenerator
         ranges: [[-50, -50, -1.8, 50, 50, -1.8]]
@@ -38,7 +38,7 @@ MODEL:
         use_sigmoid: false
       num_classes: 10
       test_cfg:
-        max_num: 500
+        max_num: 250
         min_bbox_size: 0
         nms_across_levels: false
         nms_pre: 1000
