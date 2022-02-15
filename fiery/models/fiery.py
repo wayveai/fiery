@@ -1,3 +1,4 @@
+from cv2 import sepFilter2D
 import torch
 import torch.nn as nn
 # import random
@@ -101,9 +102,9 @@ class Fiery(nn.Module):
             )
         if self.cfg.SEMANTIC_SEG.NUSCENE_CLASS:
             SEMANTIC_SEG_WEIGHTS = [1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
-        else: 
+        else:
             SEMANTIC_SEG_WEIGHTS = [1.0, 2.0]
-            
+
         # Decoder
         self.decoder = Decoder(
             in_channels=self.future_pred_in_channels,
@@ -119,8 +120,14 @@ class Fiery(nn.Module):
         self.detection_head = build_head(self.cfg.MODEL.MM.BBOX_HEAD)
 
         set_bn_momentum(self, self.cfg.MODEL.BN_MOMENTUM)
-        if self.cfg.LOSS.SEG_USE is True:
+        if self.cfg.LOSS.SEG_USE:
             print("Use segmentation loss to regress.")
+
+        if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
+            print("seg encoded_bev cat backbone.")
+        if self.cfg.MODEL.MM.SEG_ADD_BACKBONE:
+            print("seg encoded_bev add backbone.")
+            self.seg_add_backbone_weight = nn.Parameter(torch.tensor(1.0), requires_grad=True)
 
     def create_frustum(self):
         # Create grid in image plane
@@ -208,6 +215,13 @@ class Fiery(nn.Module):
         else:
             bev_output = self.decoder(states[:, -1:])
             detection_input = states[:, -1:].flatten(0, 1)
+
+        if self.cfg.MODEL.MM.SEG_ADD_BACKBONE:
+            detection_input = detection_input + self.seg_add_backbone_weight * bev_output['decoded_bev']
+
+        if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
+            detection_input = torch.cat([detection_input, bev_output['decoded_bev']], dim=-3)
+            
         detection_backbone_output = self.detection_backbone(detection_input)
         detection_neck_output = self.detection_neck(detection_backbone_output)
         cls_scores, bbox_preds, dir_cls_preds = self.detection_head(detection_neck_output)

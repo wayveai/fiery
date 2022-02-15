@@ -4,7 +4,9 @@ MODEL:
       type: FPN
       act_cfg: 
         type: ReLU
-      in_channels: [64, 128, 256]
+      # in_channels: [64, 128, 256]
+      in_channels: [128, 256, 512]
+
       norm_cfg: 
         type: naiveSyncBN2d
         eps: 0.001

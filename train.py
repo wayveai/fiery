@@ -39,8 +39,17 @@ def main():
     if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
         save_dir_tags.append('semantic')
 
+
+    if cfg.MODEL.MM.SEG_CAT_BACKBONE:
+        save_dir_tags.append('seg_cat_backbone')
+    if cfg.MODEL.MM.SEG_ADD_BACKBONE:
+        save_dir_tags.append('seg_add_backbone')
+
     if cfg.DATASET.VERSION == 'v1.0-mini':
         save_dir_tags.append('mini')
+        
+    if args.eval_path is not None:
+        save_dir_tags.append('test')
 
     save_dir = os.path.join(cfg.LOG_DIR, '_'.join(save_dir_tags))
     tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir, name=None)
