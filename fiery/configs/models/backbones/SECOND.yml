@@ -1,7 +1,7 @@
 MODEL:
   MM:
     SEG_CAT_BACKBONE: False
-    SEG_ADD_BACKBONE: True
+    SEG_ADD_BACKBONE: False
 
     BBOX_BACKBONE: 
       type: SECOND

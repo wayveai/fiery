@@ -44,3 +44,6 @@ OBJ:
   HEAD_NAME: "mm"
 
 
+MODEL:
+  ENCODER: 
+    DOWNSAMPLE: 8
