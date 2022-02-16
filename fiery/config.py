@@ -136,7 +136,7 @@ _C.TIME_RECEPTIVE_FIELD = 3  # how many frames of temporal context (1 for single
 _C.N_FUTURE_FRAMES = 4  # how many time steps into the future to predict
 
 _C.IMAGE = CN()
-_C.IMAGE.FINAL_DIM = (224, 480)
+_C.IMAGE.FINAL_DIM = [224, 480]
 _C.IMAGE.RESIZE_SCALE = 0.3
 _C.IMAGE.TOP_CROP = 46
 _C.IMAGE.ORIGINAL_HEIGHT = 900  # Original input RGB camera height

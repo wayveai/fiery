@@ -1,8 +1,11 @@
 MODEL:
   MM:
+    SEG_CAT_BACKBONE: False
+    SEG_ADD_BACKBONE: True
+
     BBOX_BACKBONE: 
       type: SECOND
-      in_channels: 128
+      in_channels: 64
       layer_nums: [3, 5, 5]
       layer_strides: [2, 2, 2]
       norm_cfg: 

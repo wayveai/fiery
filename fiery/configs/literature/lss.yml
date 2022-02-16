@@ -4,7 +4,7 @@ TAG: "lss"
 EVA_DIR: "output_dir/lss"
 # EVALUATION: False
 
-GPUS: [1, 2, 4]
+GPUS: [1, 2, 3]
 EPOCHS: 35
 BATCHSIZE: 4
 N_WORKERS: 6
@@ -43,7 +43,4 @@ LOSS:
 OBJ:
   HEAD_NAME: "mm"
 
-MODEL:
-  MM:
-    SEG_CAT_BACKBONE: True
-    SEG_ADD_BACKBONE: False
+
