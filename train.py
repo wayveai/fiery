@@ -30,8 +30,13 @@ def main():
     # save_dir = os.path.join(
     #     cfg.LOG_DIR, time.strftime('%d%B%Yat%H:%M:%S%Z') + '_' + socket.gethostname() + '_' + cfg.TAG
     # )
-    save_dir_tags = [cfg.TAG, cfg.OBJ.HEAD_NAME, f'cam_{cfg.IMAGE.N_CAMERA}',
-                     f'imgSize_{cfg.IMAGE.FINAL_DIM[0]}_{cfg.IMAGE.FINAL_DIM[1]}']
+    save_dir_tags = [
+        cfg.TAG,
+        cfg.OBJ.HEAD_NAME,
+        f'cam_{cfg.IMAGE.N_CAMERA}',
+        f'imgSize_{cfg.IMAGE.FINAL_DIM[0]}_{cfg.IMAGE.FINAL_DIM[1]}',
+        cfg.MODEL.MM.HEAD_MAPPING.get(cfg.MODEL.MM.BBOX_HEAD.type, cfg.MODEL.MM.BBOX_HEAD.type)
+    ]
     if cfg.LOSS.SEG_USE is True:
         save_dir_tags.append('segLoss')
 
