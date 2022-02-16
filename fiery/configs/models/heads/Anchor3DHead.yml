@@ -1,3 +1,8 @@
+LIFT:
+  X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
+  Y_BOUND: [-50.0, 50.0, 0.5] # Sides
+  Z_BOUND: [-10.0, 10.0, 20.0] # Height
+
 MODEL:
   MM:
     BBOX_HEAD:
