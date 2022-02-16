@@ -124,6 +124,8 @@ class Decoder(nn.Module):
         instance_offset_output = self.instance_offset_head(x)
         instance_future_output = self.instance_future_head(x) if self.predict_future_flow else None
 
+        # print("segmentation_output: ", segmentation_output.shape)
+
         # Object detection head
         score = self.score_head(x)
         pos_offsets = self.pos_offsets_head(x)

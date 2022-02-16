@@ -191,6 +191,7 @@ _C.SEMANTIC_SEG = CN()
 _C.SEMANTIC_SEG.WEIGHTS = [1.0, 2.0]  # per class cross entropy weights (bg, dynamic, drivable, lane)
 _C.SEMANTIC_SEG.USE_TOP_K = True  # backprop only top-k hardest pixels
 _C.SEMANTIC_SEG.TOP_K_RATIO = 0.25
+_C.SEMANTIC_SEG.NUSCENE_CLASS = False
 
 _C.INSTANCE_SEG = CN()
 

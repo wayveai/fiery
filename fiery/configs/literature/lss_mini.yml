@@ -14,6 +14,9 @@ VALID_FREQ: 1.0
 GRAD_NORM_CLIP: 10
 CKPT_PATH: null
 
+SEMANTIC_SEG:
+  NUSCENE_CLASS: True
+
 DATASET:
   DATAROOT: "/home/master/10/cytseng/data/sets/nuscenes/"
   FILTER_INVISIBLE_VEHICLES: True
@@ -28,9 +31,6 @@ DATASET:
 
 IMAGE:
   N_CAMERA: 6
-  # FINAL_DIM: [336, 720]
-  # RESIZE_SCALE: 0.45
-  # TOP_CROP: 69
 
 LOSS:
   SEG_USE: True

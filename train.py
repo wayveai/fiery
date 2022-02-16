@@ -39,9 +39,14 @@ def main():
     ]
     if cfg.LOSS.SEG_USE is True:
         save_dir_tags.append('segLoss')
+        
+    if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
+        save_dir_tags.append('semantic')
 
     if cfg.DATASET.VERSION == 'v1.0-mini':
         save_dir_tags.append('mini')
+
+
 
     save_dir = os.path.join(cfg.LOG_DIR, '_'.join(save_dir_tags))
     tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir, name=None)

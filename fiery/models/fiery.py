@@ -100,11 +100,17 @@ class Fiery(nn.Module):
                 n_gru_blocks=self.cfg.MODEL.FUTURE_PRED.N_GRU_BLOCKS,
                 n_res_layers=self.cfg.MODEL.FUTURE_PRED.N_RES_LAYERS,
             )
-
+        if self.cfg.SEMANTIC_SEG.NUSCENE_CLASS:
+            SEMANTIC_SEG_WEIGHTS = [1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+        else: 
+            SEMANTIC_SEG_WEIGHTS = [1.0, 2.0]
+            
         # Decoder
         self.decoder = Decoder(
             in_channels=self.future_pred_in_channels,
-            n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
+            # n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
+            n_classes=len(SEMANTIC_SEG_WEIGHTS),
+
             obj_n_classes=self.cfg.OBJ.N_CLASSES,
             predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
         )
