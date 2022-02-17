@@ -16,7 +16,7 @@ MODEL:
         max_num: 500
         out_size_factor: 4
         pc_range: [-50, -50]
-        post_center_range: [-61.2, -61.2, -10.0, 61.2, 61.2, 10.0]
+        post_center_range: [-50, -50, -10.0, 50, 50, 10.0]
         score_threshold: 0.1
         voxel_size: [0.5, 0.5]
       common_heads: # [out_channel, num_conv]
@@ -74,7 +74,7 @@ MODEL:
         nms_type: rotate
         out_size_factor: 4
         pc_range: [-50, -50]
-        post_center_limit_range: [-61.2, -61.2, -10.0, 61.2, 61.2, 10.0]
+        post_center_limit_range: [-50, -50, -10.0, 50, 50, 10.0]
         post_max_size: 100
         pre_max_size: 1000
         score_threshold: 0.1
