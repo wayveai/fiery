@@ -7,6 +7,7 @@ EVA_DIR: "output_dir/lss"
 GPUS: [0, 1, 2]
 EPOCHS: 40
 BATCHSIZE: 6
+VAL_BATCHSIZE: 6
 N_WORKERS: 8
 VALID_FREQ: 1.0 
 GRAD_NORM_CLIP: 10
@@ -22,10 +23,10 @@ DATASET:
   TRAINING_SAMPLES: -1
   VALIDATING_SAMPLES: 2000
 
-LIFT:
-  X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
-  Y_BOUND: [-50.0, 50.0, 0.5] # Sides
-  Z_BOUND: [-10.0, 10.0, 20.0] # Height
+# LIFT:
+#   X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
+#   Y_BOUND: [-50.0, 50.0, 0.5] # Sides
+#   Z_BOUND: [-10.0, 10.0, 20.0] # Height
 
 IMAGE:
   N_CAMERA: 6
