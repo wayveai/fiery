@@ -1,16 +1,18 @@
-_BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
+_BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
+# _BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss_mini"
 # EVALUATION: False
 
-GPUS: [0, 1]
+GPUS: [0, 1, 2]
 EPOCHS: 40
 BATCHSIZE: 6
-N_WORKERS: 6
+VAL_BATCHSIZE: 6
+N_WORKERS: 8
 VALID_FREQ: 1.0
 GRAD_NORM_CLIP: 10
-CKPT_PATH: None
+CKPT_PATH: null
 
 SEMANTIC_SEG:
   NUSCENE_CLASS: True
@@ -22,16 +24,13 @@ DATASET:
   TRAINING_SAMPLES: -1
   VALIDATING_SAMPLES: -1
 
-LIFT:
-  X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
-  Y_BOUND: [-50.0, 50.0, 0.5] # Sides
-  Z_BOUND: [-10.0, 10.0, 20.0] # Height
+# LIFT:
+#   X_BOUND: [-50.0, 50.0, 0.25] #  Forwards
+#   Y_BOUND: [-50.0, 50.0, 0.25] # Sides
+#   Z_BOUND: [-10.0, 10.0, 20.0] # Height
 
 IMAGE:
   N_CAMERA: 6
-  FINAL_DIM: [224, 480]
-  RESIZE_SCALE: 0.3
-  TOP_CROP: 46
 
 LOSS:
   SEG_USE: True

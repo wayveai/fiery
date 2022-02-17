@@ -9,7 +9,8 @@ from fiery.models.future_prediction import FuturePrediction
 from fiery.models.decoder import Decoder
 from fiery.utils.network import pack_sequence_dim, unpack_sequence_dim, set_bn_momentum
 from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_view_parameters, VoxelsSumming
-
+from fiery.models.head_wrappers.CenterHeadWrapper import CenterHeadWrapper
+from fiery.models.head_wrappers.Anchor3DHeadWrapper import Anchor3DHeadWrapper
 from mmdet3d.models import build_head, build_backbone, build_neck
 
 
@@ -210,9 +211,7 @@ class Fiery(nn.Module):
             detection_input = states[:, -1:].flatten(0, 1)
         detection_backbone_output = self.detection_backbone(detection_input)
         detection_neck_output = self.detection_neck(detection_backbone_output)
-        cls_scores, bbox_preds, dir_cls_preds = self.detection_head(detection_neck_output)
-
-        detection_output = dict(cls_scores=cls_scores, bbox_preds=bbox_preds, dir_cls_preds=dir_cls_preds)
+        detection_output = self.detection_head(detection_neck_output)
 
         output = {'detection_output': detection_output, **output, **bev_output}
 

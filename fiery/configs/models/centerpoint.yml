@@ -1,0 +1,15 @@
+_BASE_: ["backbones/SECOND.yml", "necks/SECONDFPN.yml", "heads/CenterHead.yml"]
+
+MODEL:
+  ENCODER:
+    OUT_CHANNELS: 128
+  MM:
+    BBOX_BACKBONE:
+      norm_cfg:
+        type: 'BN'
+        eps: 0.001
+        momentum: 0.01
+      conv_cfg:
+        type: 'Conv2d'
+        bias: False
+      in_channels: 128
