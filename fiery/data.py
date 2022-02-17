@@ -407,12 +407,15 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return segmentation, instance, z_position, instance_map, attribute_label, objects, boxes
 
     def _get_annos(self, boxes):
-        # gt_bboxes_3d: [N, 7]
+        # gt_bboxes_3d: [N, 7] or [N, 9]
         locs = np.array([b.center for b in boxes]).reshape(-1, 3)
         dims = np.array([b.wlh for b in boxes]).reshape(-1, 3)
         rots = np.array([b.orientation.yaw_pitch_roll[0] for b in boxes]).reshape(-1, 1)
+        gt_bboxes_3d_list = [locs, dims, -rots - np.pi / 2]
+        if self.cfg.DATASET.INCLUDE_VELOCITY:
+            gt_bboxes_3d_list.append(np.zeros((len(boxes), 2)))
 
-        gt_bboxes_3d = np.concatenate([locs, dims, -rots - np.pi / 2], axis=1)
+        gt_bboxes_3d = np.concatenate(gt_bboxes_3d_list, axis=1)
         gt_bboxes_3d = torch.from_numpy(gt_bboxes_3d).float()
 
         gt_bboxes_3d = LiDARInstance3DBoxes(

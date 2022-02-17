@@ -1,0 +1,15 @@
+MODEL:
+  MM:
+    BBOX_NECK:
+      type: SECONDFPN
+      in_channels: [64, 128, 256]
+      norm_cfg: 
+        type: BN
+        eps: 0.001
+        momentum: 0.01
+      out_channels: [128, 128, 128]
+      upsample_cfg: 
+        type: deconv
+        bias: false
+      upsample_strides: [0.5, 1, 2]
+      use_conv_for_no_stride: true

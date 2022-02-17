@@ -1,17 +1,17 @@
-_BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
+_BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss"
 # EVALUATION: False
 
-GPUS: [1, 2, 3]
+GPUS: [0, 1, 2]
 EPOCHS: 35
-BATCHSIZE: 4
-N_WORKERS: 6
+BATCHSIZE: 6
+VAL_BATCHSIZE: 6
+N_WORKERS: 8
 VALID_FREQ: 1.0 
 GRAD_NORM_CLIP: 10
 CKPT_PATH: null
-# CKPT_PATH: '/home/master/10/cytseng/fiery/tensorboard_logs/lss_mm_cam_6_imgSize_336_720_segLoss/version_0/checkpoints/epoch=4-step=11719.ckpt'
 
 SEMANTIC_SEG:
   NUSCENE_CLASS: False
@@ -23,19 +23,13 @@ DATASET:
   TRAINING_SAMPLES: -1
   VALIDATING_SAMPLES: 2000
 
-LIFT: 
-  X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
-  Y_BOUND: [-50.0, 50.0, 0.5] # Sides
-  Z_BOUND: [-10.0, 10.0, 20.0] # Height
+# LIFT:
+#   X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
+#   Y_BOUND: [-50.0, 50.0, 0.5] # Sides
+#   Z_BOUND: [-10.0, 10.0, 20.0] # Height
 
 IMAGE:
   N_CAMERA: 6
-  # FINAL_DIM: [336, 720]
-  # RESIZE_SCALE: 0.45
-  # TOP_CROP: 69
-  FINAL_DIM: [224, 480]
-  RESIZE_SCALE: 0.3
-  TOP_CROP: 46
 
 LOSS:
   SEG_USE: True

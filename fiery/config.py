@@ -131,6 +131,7 @@ _C.DATASET.IGNORE_INDEX = 255  # Ignore index when creating flow/offset labels
 _C.DATASET.FILTER_INVISIBLE_VEHICLES = True  # Filter vehicles that are not visible from the cameras
 _C.DATASET.TRAINING_SAMPLES = -1
 _C.DATASET.VALIDATING_SAMPLES = -1
+_C.DATASET.INCLUDE_VELOCITY = False
 
 _C.TIME_RECEPTIVE_FIELD = 3  # how many frames of temporal context (1 for single timeframe)
 _C.N_FUTURE_FRAMES = 4  # how many time steps into the future to predict
@@ -178,9 +179,10 @@ _C.MODEL.FUTURE_PRED.N_RES_LAYERS = 3
 _C.MODEL.DECODER = CN()
 
 _C.MODEL.MM = CN()
+
 _C.MODEL.MM.SEG_CAT_BACKBONE = False
 _C.MODEL.MM.SEG_ADD_BACKBONE = False
-
+_C.MODEL.MM.HEAD_MAPPING = CN(new_allowed=True)
 _C.MODEL.MM.BBOX_BACKBONE = CN(new_allowed=True)
 _C.MODEL.MM.BBOX_NECK = CN(new_allowed=True)
 _C.MODEL.MM.BBOX_HEAD = CN(new_allowed=True)
@@ -252,7 +254,7 @@ def get_cfg(args=None, cfg_dict=None):
 
     if cfg_dict is not None:
         cfg.merge_from_other_cfg(CfgNode(cfg_dict))
-
+    cfg.MODEL.MM.HEAD_MAPPING.merge_from_other_cfg(CfgNode({'Anchor3DHeadWrapper': 'pp', 'CenterHeadWrapper': 'cp'}, new_allowed=True))
     if args is not None:
         if args.config_file:
             cfg.merge_from_file(args.config_file)

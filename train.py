@@ -30,21 +30,29 @@ def main():
     # save_dir = os.path.join(
     #     cfg.LOG_DIR, time.strftime('%d%B%Yat%H:%M:%S%Z') + '_' + socket.gethostname() + '_' + cfg.TAG
     # )
-    save_dir_tags = [cfg.TAG,
-                     cfg.OBJ.HEAD_NAME,
-                     f'cam_{cfg.IMAGE.N_CAMERA}',
-                     f'imgSize_{cfg.IMAGE.FINAL_DIM[0]}_{cfg.IMAGE.FINAL_DIM[1]}',
-                     f'resolution_{cfg.LIFT.X_BOUND[2]}_{cfg.LIFT.Y_BOUND[2]}',
-                     f'img_encoder_ds_{cfg.MODEL.ENCODER.DOWNSAMPLE}',
-                     ]
+
+    save_dir_tags = [
+        cfg.TAG,
+        cfg.OBJ.HEAD_NAME,
+        f'cam_{cfg.IMAGE.N_CAMERA}',
+        f'imgSize_{cfg.IMAGE.FINAL_DIM[0]}_{cfg.IMAGE.FINAL_DIM[1]}',
+        f'resolution_{cfg.LIFT.X_BOUND[2]}_{cfg.LIFT.Y_BOUND[2]}',
+        f'img_encoder_ds_{cfg.MODEL.ENCODER.DOWNSAMPLE}',
+        cfg.MODEL.MM.HEAD_MAPPING.get(cfg.MODEL.MM.BBOX_HEAD.type, cfg.MODEL.MM.BBOX_HEAD.type)
+    ]
+
     if cfg.LOSS.SEG_USE is True:
         save_dir_tags.append('segLoss')
+        
+    if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
+        save_dir_tags.append('semantic')
 
     if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
         save_dir_tags.append('semantic')
 
     if cfg.MODEL.MM.SEG_CAT_BACKBONE:
         save_dir_tags.append('seg_cat_backbone')
+
     if cfg.MODEL.MM.SEG_ADD_BACKBONE:
         save_dir_tags.append('seg_add_backbone')
 
