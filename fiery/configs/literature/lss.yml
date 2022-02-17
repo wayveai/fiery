@@ -5,7 +5,7 @@ EVA_DIR: "output_dir/lss"
 # EVALUATION: False
 
 GPUS: [0, 1, 2]
-EPOCHS: 40
+EPOCHS: 35
 BATCHSIZE: 6
 VAL_BATCHSIZE: 6
 N_WORKERS: 8
@@ -14,7 +14,7 @@ GRAD_NORM_CLIP: 10
 CKPT_PATH: null
 
 SEMANTIC_SEG:
-  NUSCENE_CLASS: True
+  NUSCENE_CLASS: False
 
 DATASET:
   DATAROOT: "/home/master/10/cytseng/data/sets/nuscenes/"
@@ -36,3 +36,7 @@ LOSS:
 
 OBJ:
   HEAD_NAME: "mm"
+
+MODEL:
+  ENCODER: 
+    DOWNSAMPLE: 8

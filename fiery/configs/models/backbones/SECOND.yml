@@ -1,5 +1,8 @@
 MODEL:
   MM:
+    SEG_CAT_BACKBONE: False
+    SEG_ADD_BACKBONE: False
+
     BBOX_BACKBONE: 
       type: SECOND
       in_channels: 64
@@ -9,4 +12,5 @@ MODEL:
         type: naiveSyncBN2d
         eps: 0.001
         momentum: 0.01
-      out_channels: [64, 128, 256]
+      # out_channels: [128, 256, 512]
+      out_channels: [128, 256, 512]
