@@ -412,7 +412,7 @@ class TrainingModule(pl.LightningModule):
             output_dict['pred_objects'] = pre_objects
 
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
-            if batch_idx == 0:
+            if batch_idx % 1111 == 0:
                 tokens = batch['sample_token']
                 tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
@@ -695,6 +695,30 @@ class TrainingModule(pl.LightningModule):
             output_dict['pred_objects'] = pre_objects
 
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
+            if batch_idx % 777 == 0:
+                tokens = batch['sample_token']
+                tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+
+                pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
+                pred_bboxes_list = [
+                    bbox3d2result(bboxes, scores, labels)
+                    for bboxes, scores, labels in pred_bboxes_list
+                ]
+                for detection, token in zip(pred_bboxes_list, tokens):
+                    pred_boxes = output_to_nusc_box(detection, token)
+                    # print("pred_boxes: ", pred_boxes)
+
+                    self.logger.experiment.add_figure(
+                        'mm_val_visualize_bev',
+                        visualize_sample(
+                            nusc=self.nusc,
+                            sample_token=token,
+                            pred_boxes=pred_boxes,
+                        ),
+                        global_step=self.global_step
+                    )
+                    break
+                
             output_dict['output'] = output
 
         return output_dict

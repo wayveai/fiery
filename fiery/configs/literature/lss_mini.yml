@@ -1,15 +1,15 @@
-_BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
-# _BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
+# _BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
+_BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss_mini"
 # EVALUATION: False
 
-GPUS: [0, 1, 2]
-EPOCHS: 35
-BATCHSIZE: 6
+GPUS: [1]
+EPOCHS: 30
+BATCHSIZE: 5
 VAL_BATCHSIZE: 6
-N_WORKERS: 8
+N_WORKERS: 4
 VALID_FREQ: 1.0
 GRAD_NORM_CLIP: 10
 CKPT_PATH: null

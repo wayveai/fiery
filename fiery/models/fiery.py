@@ -221,7 +221,7 @@ class Fiery(nn.Module):
 
         if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
             detection_input = torch.cat([detection_input, bev_output['decoded_bev']], dim=-3)
-            
+
         detection_backbone_output = self.detection_backbone(detection_input)
         detection_neck_output = self.detection_neck(detection_backbone_output)
         detection_output = self.detection_head(detection_neck_output)
