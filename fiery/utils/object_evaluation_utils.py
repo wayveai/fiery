@@ -131,11 +131,17 @@ def lidar_egopose_to_world(rec_token, nusc):
     return egopose_to_world_translation, egopose_to_world_rotation
 
 
-def evaluate_json(output_dir, version, dataroot):
+def evaluate_json(output_dir, version, dataroot, test_trainset=False):
     if 'mini' in version:
-        eval_set = 'mini_val'
+        if test_trainset:
+            eval_set = 'mini_train'
+        else:
+            eval_set = 'mini_val'
     else:
-        eval_set = 'val'
+        if test_trainset:
+            eval_set = 'train'
+        else:
+            eval_set = 'val'
 
     cfg = config_factory("detection_cvpr_2019")
     res_path = os.path.join(output_dir, 'detection_result.json')

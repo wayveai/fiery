@@ -737,7 +737,7 @@ class TrainingModule(pl.LightningModule):
         with open(os.path.join(self.cfg.EVA_DIR, 'detection_result.json'), "w") as f:
             json.dump(self.nusc_annos, f)
 
-        evaluate_json(self.cfg.EVA_DIR, self.cfg.DATASET.VERSION, self.cfg.DATASET.DATAROOT)
+        evaluate_json(self.cfg.EVA_DIR, self.cfg.DATASET.VERSION, self.cfg.DATASET.DATAROOT, self.cfg.TEST_TRAINSET)
 
         # self.trainer.save_checkpoint(os.path.join(self.trainer.log_dir, 'checkpoints',
         #                              f'{self.trainer.current_epoch}.ckpt'))
