@@ -412,7 +412,7 @@ class TrainingModule(pl.LightningModule):
             output_dict['pred_objects'] = pre_objects
 
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
-            if batch_idx % 1111 == 0:
+            if batch_idx == 0:
                 tokens = batch['sample_token']
                 tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
