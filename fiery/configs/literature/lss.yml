@@ -1,5 +1,5 @@
-# _BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
-_BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
+_BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
+# _BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss"
@@ -23,6 +23,12 @@ DATASET:
   VERSION: "v1.0-trainval"
   TRAINING_SAMPLES: -1
   VALIDATING_SAMPLES: 2000
+  
+LOSS: 
+  SEG_LOSS_WEIGHT: 
+    ALL: 0.2
+  OBJ_LOSS_WEIGHT:
+    ALL: 1
 
 # LIFT:
 #   X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
