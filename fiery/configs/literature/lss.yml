@@ -3,6 +3,8 @@ _BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss"
+LOG_DIR: "/work/u5239166/fiery/tensorboard_logs"
+
 # EVALUATION: False
 
 GPUS: [1]
@@ -23,7 +25,7 @@ DATASET:
   VERSION: "v1.0-trainval"
   TRAINING_SAMPLES: -1
   VALIDATING_SAMPLES: 2000
-  
+
 LOSS: 
   SEG_LOSS_WEIGHT: 
     ALL: 0.2

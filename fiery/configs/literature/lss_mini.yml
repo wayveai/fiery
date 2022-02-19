@@ -3,6 +3,8 @@ _BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss_mini"
+LOG_DIR: "/work/u5239166/fiery/tensorboard_logs"
+
 # EVALUATION: False
 
 GPUS: [1]
