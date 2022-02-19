@@ -674,7 +674,7 @@ def prepare_dataloaders(cfg, return_dataset=False):
 
     traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
     valdata = FuturePredictionDataset(nusc, False, cfg)
-    testdata = FuturePredictionDataset(nusc, False, cfg)
+    testdata = FuturePredictionDataset(nusc, False, cfg) if not cfg.TEST_TRAINSET else traindata
 
     # if cfg.DATASET.VERSION == 'v1.0-mini':
     #     traindata.indices = traindata.indices[:10]
