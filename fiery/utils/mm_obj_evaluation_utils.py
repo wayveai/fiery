@@ -65,12 +65,12 @@ def output_to_nusc_box(detection, token):
         list[:obj:`NuScenesBox`]: List of standard NuScenesBoxes.
     """
     box3d = detection['boxes_3d']
-    scores = detection['scores_3d'].numpy()
-    labels = detection['labels_3d'].numpy()
+    scores = detection['scores_3d'].detach().cpu().numpy()
+    labels = detection['labels_3d'].detach().cpu().numpy()
 
-    box_gravity_center = box3d.gravity_center.numpy()
-    box_dims = box3d.dims.numpy()
-    box_yaw = box3d.yaw.numpy()
+    box_gravity_center = box3d.gravity_center.detach().cpu().numpy()
+    box_dims = box3d.dims.detach().cpu().numpy()
+    box_yaw = box3d.yaw.detach().cpu().numpy()
     # TODO: check whether this is necessary
     # with dir_offset & dir_limit in the head
     box_yaw = -box_yaw - np.pi / 2
