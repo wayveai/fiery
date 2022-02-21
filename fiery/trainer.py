@@ -367,7 +367,7 @@ class TrainingModule(pl.LightningModule):
             if batch_idx == 0:
                 tokens = batch['sample_token']
                 tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
-                
+
                 pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
                 pred_bboxes_list = [
                     bbox3d2result(bboxes, scores, labels)
@@ -733,7 +733,7 @@ class TrainingModule(pl.LightningModule):
                     # print("pred_boxes: ", pred_boxes)
 
                     self.logger.experiment.add_figure(
-                        'mm_val_visualize_bev',
+                        'test_mm_val_visualize_bev',
                         visualize_sample(
                             nusc=self.nusc,
                             sample_token=token,
@@ -742,7 +742,7 @@ class TrainingModule(pl.LightningModule):
                         global_step=self.global_step
                     )
                     break
-                
+
             output_dict['output'] = output
 
         return output_dict

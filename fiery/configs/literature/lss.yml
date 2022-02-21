@@ -3,8 +3,8 @@ _BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
 
 TAG: "lss"
 EVA_DIR: "output_dir/lss"
-LOG_DIR: "/work/u5239166/fiery/tensorboard_logs"
-
+# LOG_DIR: "/work/u5239166/fiery/tensorboard_logs"
+# TEST_TRAINSET: True
 # EVALUATION: False
 
 GPUS: [1]
@@ -30,7 +30,7 @@ LOSS:
   SEG_LOSS_WEIGHT: 
     ALL: 0.2
   OBJ_LOSS_WEIGHT:
-    ALL: 1
+    ALL: 0.8
 
 # LIFT:
 #   X_BOUND: [-50.0, 50.0, 0.5] #  Forwards
@@ -39,6 +39,10 @@ LOSS:
 
 IMAGE:
   N_CAMERA: 6
+  FINAL_DIM: [256, 704]
+  RESIZE_SCALE: 0.44
+  TOP_CROP: 140
+  IMAGE_AUG: True
 
 LOSS:
   SEG_USE: True

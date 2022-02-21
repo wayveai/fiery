@@ -10,6 +10,6 @@ MODEL:
       out_channels: [256, 256, 256]
       upsample_cfg: 
         type: deconv
-        bias: false
+        bias: False
       upsample_strides: [0.5, 1, 2]
       use_conv_for_no_stride: true

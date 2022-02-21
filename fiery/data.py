@@ -1,5 +1,6 @@
 import os
 from PIL import Image
+from cv2 import resizeWindow
 
 import numpy as np
 import cv2
@@ -192,12 +193,21 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         original_height, original_width = self.cfg.IMAGE.ORIGINAL_HEIGHT, self.cfg.IMAGE.ORIGINAL_WIDTH
         final_height, final_width = self.cfg.IMAGE.FINAL_DIM
 
-        resize_scale = self.cfg.IMAGE.RESIZE_SCALE
-        resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
-        resized_width, resized_height = resize_dims
+        if self.cfg.IMAGE.IMAGE_AUG:
+            low, high = self.cfg.IMAGE.RANDOM_RESIZE_RANGE
+            resize_scale = np.random.uniform(low=low, high=high)
 
-        crop_h = self.cfg.IMAGE.TOP_CROP
-        crop_w = int(max(0, (resized_width - final_width) / 2))
+            resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
+            resized_width, resized_height = resize_dims
+            crop_h = int(max(0, (resized_height - final_height)))
+            crop_w = int(np.random.randint(0, (resized_width - final_width)))
+        else:
+            resize_scale = self.cfg.IMAGE.RESIZE_SCALE
+            resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
+            resized_width, resized_height = resize_dims
+            crop_h = self.cfg.IMAGE.TOP_CROP
+            crop_w = int(max(0, (resized_width - final_width) / 2))
+
         # Left, top, right, bottom crops.
         crop = (crop_w, crop_h, crop_w + final_width, crop_h + final_height)
 
@@ -415,7 +425,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         if self.cfg.DATASET.INCLUDE_VELOCITY:
             gt_bboxes_3d_list.append(np.zeros((len(boxes), 2)))
-        
+
         gt_bboxes_3d = np.concatenate(gt_bboxes_3d_list, axis=1)
         gt_bboxes_3d = torch.from_numpy(gt_bboxes_3d).float()
 
