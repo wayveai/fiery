@@ -21,6 +21,7 @@ from nuscenes.utils.data_classes import LidarPointCloud
 from nuscenes.utils.geometry_utils import view_points
 from nuscenes.utils.data_classes import Box as NuScenesBox
 from fiery.utils.object_evaluation_utils import lidar_egopose_to_world
+from fiery.utils.visualisation import heatmap_image
 from pyquaternion import Quaternion
 
 Axis = Any
@@ -150,6 +151,9 @@ def visualize_sample(nusc: NuScenes,
     ax.set_xlim(-axes_limit, axes_limit)
     ax.set_ylim(-axes_limit, axes_limit)
 
+    # Reverse X, Y axis
+    # ax.invert_xaxis()
+    # ax.invert_yaxis()
     # Show / save plot.
     if verbose:
         print('Rendering sample token %s' % sample_token)
@@ -160,3 +164,10 @@ def visualize_sample(nusc: NuScenes,
     # else:
     #     plt.show()
     return fig
+
+
+def visualize_center(pred_heatmap, gt_heatmap):
+    gt_heatmap_img = heatmap_image(gt_heatmap.detach().cpu().numpy())[::-1, ::-1]
+    pred_heatmap_img = heatmap_image(pred_heatmap.detach().cpu().numpy())[::-1, ::-1]
+    heatmap_img = np.concatenate([gt_heatmap_img, pred_heatmap_img], axis=1)
+    return heatmap_img
