@@ -414,6 +414,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         dims[:, [1, 0]] = dims[:, [0, 1]]
 
         rots = np.array([b.orientation.yaw_pitch_roll[0] for b in boxes]).reshape(-1, 1)
+        # gt_bboxes_3d_list = [locs, dims, rots]
         gt_bboxes_3d_list = [locs, dims, -rots - np.pi / 2]
 
         if self.cfg.DATASET.INCLUDE_VELOCITY:

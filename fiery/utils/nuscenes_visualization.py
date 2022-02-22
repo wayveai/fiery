@@ -4,7 +4,7 @@
 
 import json
 from lib2to3.pgen2.literals import evalString
-from typing import Any
+from typing import Any, List, Union
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -20,9 +20,13 @@ from nuscenes.eval.detection.data_classes import DetectionMetrics, DetectionMetr
 from nuscenes.utils.data_classes import LidarPointCloud
 from nuscenes.utils.geometry_utils import view_points
 from nuscenes.utils.data_classes import Box as NuScenesBox
+import torch
+from fiery.utils.mm_obj_evaluation_utils import output_to_nusc_box
 from fiery.utils.object_evaluation_utils import lidar_egopose_to_world
 from fiery.utils.visualisation import heatmap_image
 from pyquaternion import Quaternion
+from mmdet3d.core import bbox3d2result
+from mmdet3d.core.bbox import BaseInstance3DBoxes
 
 Axis = Any
 
@@ -151,9 +155,6 @@ def visualize_sample(nusc: NuScenes,
     ax.set_xlim(-axes_limit, axes_limit)
     ax.set_ylim(-axes_limit, axes_limit)
 
-    # Reverse X, Y axis
-    # ax.invert_xaxis()
-    # ax.invert_yaxis()
     # Show / save plot.
     if verbose:
         print('Rendering sample token %s' % sample_token)
@@ -166,8 +167,82 @@ def visualize_sample(nusc: NuScenes,
     return fig
 
 
+def visualize_bbox(pred_bboxes: List[Union[BaseInstance3DBoxes, torch.Tensor]],
+                   gt_bbox_3d: BaseInstance3DBoxes,
+                   gt_label_3d: torch.Tensor,
+                   token: str,
+                   conf_th: float = 0.15,
+                   eval_range: float = 50,
+                   verbose: bool = False,
+                   savepath=None) -> None:
+    """Visualizes a sample from BEV with annotations and detection results.
+    Args:
+        pred_bboxes: Prediction grouped by sample.
+        gt_bbox_3d: Ground truth boxes grouped by sample.
+        gt_label_3d: Ground truch labels grouped by sample.
+        token: The nuScenes sample token.
+        conf_th: The confidence threshold used to filter negatives.
+        eval_range: Range in meters beyond which boxes are ignored.
+        verbose: Whether to print to stdout.
+        savepath: If given, saves the the rendering here instead of displaying.
+    """
+
+    #####
+    # Get GT boxes.
+    #####
+    gt_bboxes = output_to_nusc_box(bbox3d2result(gt_bbox_3d, torch.ones_like(gt_label_3d), gt_label_3d), token)
+
+    # print("gt_boxes:", gt_boxes)
+
+    #####
+    # Get Pred boxes.
+    #####
+    bboxes, scores, labels = pred_bboxes
+    pred_bboxes = output_to_nusc_box(bbox3d2result(bboxes, scores, labels), token)
+
+    # print("pred_boxes: ", pred_boxes)
+
+    image = np.zeros(())
+
+    # Init axes.
+    fig, ax = plt.subplots(1, 1, figsize=(9, 9))
+
+    # Show ego vehicle.
+    ax.plot(0, 0, 'x', color='black')
+
+    # Show GT boxes.
+    for box in gt_bboxes:
+        box.render(ax, view=np.eye(4), colors=('g', 'g', 'g'), linewidth=2)
+
+    # Show EST boxes.
+    for box in pred_bboxes:
+        # Show only predictions with a high score.
+        assert not np.isnan(box.score), 'Error: Box score cannot be NaN!'
+        if box.score >= conf_th:
+            box.render(ax, view=np.eye(4), colors=('b', 'b', 'b'), linewidth=1)
+
+    # Limit visible range.
+    axes_limit = eval_range + 3  # Slightly bigger to include boxes that extend beyond the range.
+    ax.set_xlim(-axes_limit, axes_limit)
+    ax.set_ylim(-axes_limit, axes_limit)
+
+    # Reverse X, Y axis
+    # ax.invert_xaxis()
+    ax.invert_yaxis()
+    # Show / save plot.
+    if verbose:
+        print('Rendering sample token %s' % token)
+    plt.title(token)
+    # if savepath is not None:
+    #     plt.savefig(savepath)
+    #     plt.close()
+    # else:
+    #     plt.show()
+    return fig
+
+
 def visualize_center(pred_heatmap, gt_heatmap):
-    gt_heatmap_img = heatmap_image(gt_heatmap.detach().cpu().numpy())[::-1, ::-1]
-    pred_heatmap_img = heatmap_image(pred_heatmap.detach().cpu().numpy())[::-1, ::-1]
+    gt_heatmap_img = heatmap_image(gt_heatmap.detach().cpu().numpy())
+    pred_heatmap_img = heatmap_image(pred_heatmap.detach().cpu().numpy())
     heatmap_img = np.concatenate([gt_heatmap_img, pred_heatmap_img], axis=1)
     return heatmap_img

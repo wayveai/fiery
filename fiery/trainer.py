@@ -20,14 +20,14 @@ from fiery.utils.visualisation import visualise_output
 # from fiery.object_losses import compute_loss
 from fiery.utils.object_encoder import ObjectEncoder
 from fiery.utils.object_visualisation import visualize_bev
-from fiery.utils.nuscenes_visualization import visualize_sample, visualize_center
+from fiery.utils.nuscenes_visualization import visualize_bbox, visualize_sample, visualize_center
 
 from fiery.utils.object_evaluation_utils import (cls_attr_dist, evaluate_json, lidar_egopose_to_world)
-from fiery.utils.mm_obj_evaluation_utils import mm_bbox3d2result, output_to_nusc_box, lidar_nusc_box_to_global
+from fiery.utils.mm_obj_evaluation_utils import output_to_nusc_box
 
 from nuscenes.nuscenes import NuScenes
 from pyquaternion.quaternion import Quaternion
-from mmdet3d.core import (Box3DMode, Coord3DMode, bbox3d2result)
+from mmdet3d.core import bbox3d2result
 
 
 class TrainingModule(pl.LightningModule):
@@ -692,39 +692,46 @@ class TrainingModule(pl.LightningModule):
 
         return optimizer
 
-    def mm_visualize(self, batch, preds_dicts, global_step=None, prefix='val'):
+    def mm_visualize(self, batch, preds_dicts, pred_bboxes_list=None, global_step=None, prefix='val'):
+        if global_step is None:
+            global_step = self.global_step
         tokens = batch['sample_token']
         tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
-        pred_bboxes_list = self.model.detection_head.get_bboxes(batch, preds_dicts)
-        pred_bboxes_list = [
-            bbox3d2result(bboxes, scores, labels)
-            for bboxes, scores, labels in pred_bboxes_list
-        ]
-        if global_step is None:
-            global_step = self.global_step
-        for detection, token in zip(pred_bboxes_list, tokens):
-            pred_boxes = output_to_nusc_box(detection, token)
+        gt_bboxes_3d = [item[0] for item in batch['gt_bboxes_3d']]
+        gt_labels_3d = [item[0] for item in batch['gt_labels_3d']]
 
+        # if pred_bboxes_list is not None, use it. Otherwise get bboxes from the detection head
+        if pred_bboxes_list is None:
+            pred_bboxes_list = self.model.detection_head.get_bboxes(batch, preds_dicts)
+        preds_heatmaps, gt_heatmaps = self.model.detection_head.get_heatmaps(batch, preds_dicts)
+
+        for pred_bboxes, gt_bbox_3d, gt_label_3d, token, pred_heatmap, gt_heatmap in zip(
+            pred_bboxes_list,
+            gt_bboxes_3d,
+            gt_labels_3d,
+            tokens,
+            preds_heatmaps['task_0.heatmap'],
+            gt_heatmaps[0]
+        ):
             self.logger.experiment.add_figure(
                 f'{prefix}_mm_bev',
-                visualize_sample(
-                    nusc=self.nusc,
-                    sample_token=token,
-                    pred_boxes=pred_boxes,
+                visualize_bbox(
+                    pred_bboxes=pred_bboxes,
+                    gt_bbox_3d=gt_bbox_3d,
+                    gt_label_3d=gt_label_3d,
+                    token=token,
                 ),
                 global_step=global_step
             )
 
-            preds_heatmaps, gt_heatmaps = self.model.detection_head.get_heatmaps(batch, preds_dicts)
             # get heatmap from task 0 and batch_idx 0
-            pred_heatmap = preds_heatmaps['task_0.heatmap'][0].sum(dim=0)
-            gt_heatmap = gt_heatmaps[0][0].sum(dim=0)
+            pred_heatmap = pred_heatmap.sum(dim=0)
+            gt_heatmap = gt_heatmap.sum(dim=0)
 
-            heatmap_image = visualize_center(pred_heatmap, gt_heatmap)
             self.logger.experiment.add_image(
                 f'{prefix}_mm_heatmap',
-                heatmap_image,
+                visualize_center(pred_heatmap, gt_heatmap),
                 dataformats='HWC',
                 global_step=global_step
             )
@@ -742,7 +749,8 @@ class TrainingModule(pl.LightningModule):
             #####
             for key, value in seg_loss.items():
                 self.log(f'test_seg_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
-            self.visualise(labels, output, global_step=batch_idx, prefix='test')
+            if batch_idx % 100 == 0:
+                self.visualise(labels, output, global_step=batch_idx, prefix='test')
             loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
         else:
             loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
@@ -760,8 +768,9 @@ class TrainingModule(pl.LightningModule):
             output_dict['pred_objects'] = pre_objects
 
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
-            if batch_idx % 1 == 0:
-                self.mm_visualize(batch, output['detection_output'], global_step=batch_idx, prefix='test')
+            pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
+            if batch_idx % 100 == 0:
+                self.mm_visualize(batch, output['detection_output'], pred_bboxes_list=pred_bboxes_list, global_step=batch_idx, prefix='test')
             output_dict['output'] = output
 
         return output_dict
