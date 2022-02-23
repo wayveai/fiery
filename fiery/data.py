@@ -207,14 +207,13 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             resized_width, resized_height = resize_dims
             crop_h = self.cfg.IMAGE.TOP_CROP
             crop_w = int(max(0, (resized_width - final_width) / 2))
+            if resized_width != final_width:
+                print('Zero padding left and right parts of the image.')
+            if crop_h + final_height != resized_height:
+                print('Zero padding bottom part of the image.')
 
         # Left, top, right, bottom crops.
         crop = (crop_w, crop_h, crop_w + final_width, crop_h + final_height)
-
-        if resized_width != final_width:
-            print('Zero padding left and right parts of the image.')
-        if crop_h + final_height != resized_height:
-            print('Zero padding bottom part of the image.')
 
         return {'scale_width': resize_scale,
                 'scale_height': resize_scale,
