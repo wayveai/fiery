@@ -141,24 +141,29 @@ def visualize_sample(nusc: NuScenes,
 
     # Show GT boxes.
     for box in gt_boxes:
-        box.render(ax, view=np.eye(4), colors=('g', 'g', 'g'), linewidth=2)
+        box.render(ax, view=np.eye(4), colors=('r', 'r', 'r'), linewidth=2)
 
     # Show EST boxes.
     for box in pred_boxes:
         # Show only predictions with a high score.
         assert not np.isnan(box.score), 'Error: Box score cannot be NaN!'
         if box.score >= conf_th:
-            box.render(ax, view=np.eye(4), colors=('b', 'b', 'b'), linewidth=1)
+            box.render(ax, view=np.eye(4), colors=('g', 'g', 'g'), linewidth=1)
 
     # Limit visible range.
     axes_limit = eval_range + 3  # Slightly bigger to include boxes that extend beyond the range.
     ax.set_xlim(-axes_limit, axes_limit)
     ax.set_ylim(-axes_limit, axes_limit)
 
+    ax.invert_yaxis()
+    ax.set_xlabel('y')
+    ax.set_ylabel('x')
+
     # Show / save plot.
     if verbose:
         print('Rendering sample token %s' % sample_token)
     plt.title(sample_token)
+
     # if savepath is not None:
     #     plt.savefig(savepath)
     #     plt.close()
@@ -200,10 +205,6 @@ def visualize_bbox(pred_bboxes: List[Union[BaseInstance3DBoxes, torch.Tensor]],
     bboxes, scores, labels = pred_bboxes
     pred_bboxes = output_to_nusc_box(bbox3d2result(bboxes, scores, labels), token)
 
-    # print("pred_boxes: ", pred_boxes)
-
-    image = np.zeros(())
-
     # Init axes.
     fig, ax = plt.subplots(1, 1, figsize=(9, 9))
 
@@ -229,6 +230,8 @@ def visualize_bbox(pred_bboxes: List[Union[BaseInstance3DBoxes, torch.Tensor]],
     # Reverse X, Y axis
     # ax.invert_xaxis()
     ax.invert_yaxis()
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
     # Show / save plot.
     if verbose:
         print('Rendering sample token %s' % token)

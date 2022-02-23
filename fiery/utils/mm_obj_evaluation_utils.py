@@ -10,7 +10,7 @@ from mmdet3d.core.bbox import LiDARInstance3DBoxes
 from fiery.data import NUSCENE_CLASS_NAMES
 
 
-def mm_bbox3d2result(bboxes, scores, labels, attrs=None, gt=False):
+def mm_bbox3d2nusc_box(bboxes, scores, labels, attrs=None, is_ground_truth=False):
     """Convert detection results to a list of numpy arrays.
 
     Args:
@@ -29,7 +29,7 @@ def mm_bbox3d2result(bboxes, scores, labels, attrs=None, gt=False):
             - attrs_3d (torch.Tensor, optional): Box attributes.
 
     """
-    if gt is False:
+    if is_ground_truth is False:
         result_dict = dict(
             boxes_3d=bboxes.to('cpu'),
             scores_3d=scores.cpu(),
@@ -51,7 +51,7 @@ def mm_bbox3d2result(bboxes, scores, labels, attrs=None, gt=False):
     return result_dict
 
 
-def output_to_nusc_box(detection, token):
+def output_to_nusc_box(detection, token, is_eval=False):
     """Convert the output to the box class in the nuScenes.
 
     Args:
@@ -69,11 +69,14 @@ def output_to_nusc_box(detection, token):
     labels = detection['labels_3d'].detach().cpu().numpy()
 
     box_gravity_center = box3d.gravity_center.detach().cpu().numpy()
+    if is_eval:
+        box_gravity_center = box_gravity_center[:, [1, 0, 2]]
     box_dims = box3d.dims.detach().cpu().numpy()
     box_yaw = box3d.yaw.detach().cpu().numpy()
     # TODO: check whether this is necessary
     # with dir_offset & dir_limit in the head
-    box_yaw = -box_yaw - np.pi / 2
+    if is_eval:
+        box_yaw = -box_yaw + np.pi / 2
 
     box_list = []
     for i in range(len(box3d)):

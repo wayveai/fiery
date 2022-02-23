@@ -1,6 +1,7 @@
 from mmdet3d.models.builder import HEADS
 from mmdet3d.models.dense_heads import CenterHead
 from mmdet3d.models.utils import clip_sigmoid
+import torch
 
 
 @HEADS.register_module()
@@ -91,7 +92,6 @@ class CenterHeadWrapper(CenterHead):
 
         preds_heatmaps = dict()
         for task_id, preds_dict in enumerate(preds_dicts):
-            pred_heatmaps = clip_sigmoid(preds_dict[0]['heatmap'])
+            pred_heatmaps = torch.clamp(torch.sigmoid(preds_dict[0]['heatmap'].detach()), 1e-4, 1 - 1e-4)
             preds_heatmaps[f'task_{task_id}.heatmap'] = pred_heatmaps
-        print(preds_heatmaps['task_0.heatmap'][0].shape)
         return preds_heatmaps, gt_heatmaps

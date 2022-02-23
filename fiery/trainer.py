@@ -338,7 +338,7 @@ class TrainingModule(pl.LightningModule):
 
     def visualise(self, labels, output, global_step=None, prefix='train'):
         visualisation_video = visualise_output(labels, output, self.cfg)
-        name = f'{prefix}_outputs'
+        name = f'{prefix}_seg_outputs'
         # if prefix == 'val':
         # name = name + f'_{batch_idx}'
         self.logger.experiment.add_video(
@@ -360,7 +360,7 @@ class TrainingModule(pl.LightningModule):
             #####
             for key, value in seg_loss.items():
                 self.log(f'train_seg_loss/{key}', value)
-            if self.training_step_count % self.cfg.VIS_INTERVAL == 0:
+            if batch_idx == 0:
                 self.visualise(labels, output, prefix='train')
 
             loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
@@ -369,28 +369,33 @@ class TrainingModule(pl.LightningModule):
 
         if self.cfg.OBJ.HEAD_NAME == 'mm':
             if batch_idx == 0:
-                tokens = batch['sample_token']
-                tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+                self.mm_visualize(
+                    batch,
+                    output['detection_output'],
+                    prefix='train'
+                )
+        #         # tokens = batch['sample_token']
+        #         # tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
-                pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
-                pred_bboxes_list = [
-                    bbox3d2result(bboxes, scores, labels)
-                    for bboxes, scores, labels in pred_bboxes_list
-                ]
-                for detection, token in zip(pred_bboxes_list, tokens):
-                    pred_boxes = output_to_nusc_box(detection, token)
-                    # print("pred_boxes: ", pred_boxes)
-                    bbox_image = visualize_sample(
-                        nusc=self.nusc,
-                        sample_token=token,
-                        pred_boxes=pred_boxes,
-                    )
-                    self.logger.experiment.add_figure(
-                        'train_mm_val_visualize_bev',
-                        bbox_image,
-                        global_step=self.global_step
-                    )
-                    break
+        #         # pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
+        #         # pred_bboxes_list = [
+        #         #     bbox3d2result(bboxes, scores, labels)
+        #         #     for bboxes, scores, labels in pred_bboxes_list
+        #         # ]
+        #         # for detection, token in zip(pred_bboxes_list, tokens):
+        #         #     pred_boxes = output_to_nusc_box(detection, token)
+        #         #     # print("pred_boxes: ", pred_boxes)
+        #         #     bbox_image = visualize_sample(
+        #         #         nusc=self.nusc,
+        #         #         sample_token=token,
+        #         #         pred_boxes=pred_boxes,
+        #         #     )
+        #         #     self.logger.experiment.add_figure(
+        #         #         'train_mm_val_visualize_bev',
+        #         #         bbox_image,
+        #         #         global_step=self.global_step
+        #         #     )
+        #         #     break
         #####
         # OBJ Loss Logger
         #####
@@ -411,7 +416,8 @@ class TrainingModule(pl.LightningModule):
             #####
             for key, value in seg_loss.items():
                 self.log(f'val_seg_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
-            self.visualise(labels, output, prefix='val')
+            if batch_idx == 0:
+                self.visualise(labels, output, prefix='val')
             loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
         else:
             loss = (self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL) * loss
@@ -423,47 +429,36 @@ class TrainingModule(pl.LightningModule):
             self.log(f'val_obj_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
 
         output_dict = {'val_loss': loss}
-        # Visualzation
+        # Visualzation & Evaluation
+        tokens = batch['sample_token']
+        tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
         if self.cfg.OBJ.HEAD_NAME == 'oft':
-            pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
+            pred_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
             self.logger.experiment.add_figure(
                 'oft_val_visualize_bev',
                 visualize_bev(
                     objects,
                     gt_encoded[0],
-                    pre_objects,
+                    pred_objects,
                     pre_encoded[0],
                     grids
                 ),
                 global_step=self.global_step
             )
-            output_dict['pred_objects'] = pre_objects
-
+            if self.cfg.EVALUATION:
+                self.oft_obj_evaluation(tokens, pred_objects)
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
+            pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
             if batch_idx == 0:
-                tokens = batch['sample_token']
-                tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
-
-                pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
-                pred_bboxes_list = [
-                    bbox3d2result(bboxes, scores, labels)
-                    for bboxes, scores, labels in pred_bboxes_list
-                ]
-                for detection, token in zip(pred_bboxes_list, tokens):
-                    pred_boxes = output_to_nusc_box(detection, token)
-                    # print("pred_boxes: ", pred_boxes)
-
-                    self.logger.experiment.add_figure(
-                        'mm_val_visualize_bev',
-                        visualize_sample(
-                            nusc=self.nusc,
-                            sample_token=token,
-                            pred_boxes=pred_boxes,
-                        ),
-                        global_step=self.global_step
-                    )
-                    break
-            output_dict['output'] = output
+                self.mm_visualize(
+                    batch,
+                    output['detection_output'],
+                    pred_bboxes_list=pred_bboxes_list,
+                    tokens=tokens,
+                    prefix='val'
+                )
+            if self.cfg.EVALUATION:
+                self.mm_obj_evaluation(tokens, pred_bboxes_list)
 
         return output_dict
 
@@ -471,7 +466,16 @@ class TrainingModule(pl.LightningModule):
         for detection, token in zip(detections, tokens):
             annos = []
             # print("detection: ", (detection))
-            pred_boxes = output_to_nusc_box(detection, token)
+            bboxes, scores, labels = detection
+            pred_boxes = output_to_nusc_box(
+                bbox3d2result(
+                    bboxes,
+                    scores.detach().cpu(),
+                    labels.detach().cpu()
+                ),
+                token,
+                is_eval=True
+            )
             # print("pred_bboxes: ", pred_bboxes)
             # self.logger.experiment.add_figure(
             #     'mm_val_visualize_bev',
@@ -595,32 +599,32 @@ class TrainingModule(pl.LightningModule):
                     # print('len(annos): ', len(annos))
             self.nusc_annos['results'].update({token: annos})
 
-    def on_validation_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
-        if self.cfg.EVALUATION is True:
-            tokens = batch['sample_token']
-            tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
-            if self.cfg.OBJ.HEAD_NAME == 'oft':
-                assert 'pred_objects' in outputs
-                batch_pred_objects = outputs['pred_objects']
-                self.oft_obj_evaluation(tokens, batch_pred_objects)
+    # def on_validation_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
+    #     if self.cfg.EVALUATION:
+    #         tokens = batch['sample_token']
+    #         tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+    #         if self.cfg.OBJ.HEAD_NAME == 'oft':
+    #             assert 'pred_objects' in outputs
+    #             batch_pred_objects = outputs['pred_objects']
+    #             self.oft_obj_evaluation(tokens, batch_pred_objects)
 
-            elif self.cfg.OBJ.HEAD_NAME == 'mm':
-                assert 'output' in outputs
-                output = outputs['output']
-                pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
-                pred_bboxes_list = [
-                    bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
-                    for bboxes, scores, labels in pred_bboxes_list
-                ]
+    #         elif self.cfg.OBJ.HEAD_NAME == 'mm':
+    #             assert 'output' in outputs
+    #             output = outputs['output']
+    #             pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
+    #             pred_bboxes_list = [
+    #                 bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
+    #                 for bboxes, scores, labels in pred_bboxes_list
+    #             ]
 
-                self.mm_obj_evaluation(tokens, pred_bboxes_list)
+    #             self.mm_obj_evaluation(tokens, pred_bboxes_list)
 
     def on_validation_epoch_start(self):
-        if self.cfg.EVALUATION is True:
+        if self.cfg.EVALUATION:
             self.nusc_annos = {'results': {}, 'meta': None}
 
     def on_validation_epoch_end(self) -> None:
-        if self.cfg.EVALUATION is True:
+        if self.cfg.EVALUATION:
             self.nusc_annos['meta'] = {
                 "use_camera": True,
                 "use_lidar": False,
@@ -692,11 +696,12 @@ class TrainingModule(pl.LightningModule):
 
         return optimizer
 
-    def mm_visualize(self, batch, preds_dicts, pred_bboxes_list=None, global_step=None, prefix='val'):
+    def mm_visualize(self, batch, preds_dicts, pred_bboxes_list=None, tokens=None, global_step=None, prefix='val'):
         if global_step is None:
             global_step = self.global_step
-        tokens = batch['sample_token']
-        tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+        if tokens is None:
+            tokens = batch['sample_token']
+            tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
 
         gt_bboxes_3d = [item[0] for item in batch['gt_bboxes_3d']]
         gt_labels_3d = [item[0] for item in batch['gt_labels_3d']]
@@ -714,6 +719,7 @@ class TrainingModule(pl.LightningModule):
             preds_heatmaps['task_0.heatmap'],
             gt_heatmaps[0]
         ):
+            # show bbox between mm_gt(green) and mm_pred(blue)
             self.logger.experiment.add_figure(
                 f'{prefix}_mm_bev',
                 visualize_bbox(
@@ -725,10 +731,26 @@ class TrainingModule(pl.LightningModule):
                 global_step=global_step
             )
 
+            # show bbox between mm_gt(green) and nusc_gt(red)
+            self.logger.experiment.add_figure(
+                f'{prefix}_eval_bev',
+                visualize_sample(
+                    nusc=self.nusc,
+                    pred_boxes=output_to_nusc_box(
+                        bbox3d2result(gt_bbox_3d, torch.ones_like(gt_label_3d), gt_label_3d),
+                        token,
+                        is_eval=True
+                    ),
+                    sample_token=token,
+                ),
+                global_step=global_step
+            )
+
             # get heatmap from task 0 and batch_idx 0
             pred_heatmap = pred_heatmap.sum(dim=0)
             gt_heatmap = gt_heatmap.sum(dim=0)
 
+            # show center heatmap between mm_gt(left) and mm_pred(right)
             self.logger.experiment.add_image(
                 f'{prefix}_mm_heatmap',
                 visualize_center(pred_heatmap, gt_heatmap),
@@ -749,7 +771,7 @@ class TrainingModule(pl.LightningModule):
             #####
             for key, value in seg_loss.items():
                 self.log(f'test_seg_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
-            if batch_idx % 100 == 0:
+            if batch_idx % 150 == 0:
                 self.visualise(labels, output, global_step=batch_idx, prefix='test')
             loss = self.cfg.LOSS.OBJ_LOSS_WEIGHT.ALL * loss + self.cfg.LOSS.SEG_LOSS_WEIGHT.ALL * sum(seg_loss.values())
         else:
@@ -762,38 +784,26 @@ class TrainingModule(pl.LightningModule):
             self.log(f'test_obj_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
 
         output_dict = {'test_loss': loss}
-        # Visualzation
-        if self.cfg.OBJ.HEAD_NAME == 'oft':
-            pre_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
-            output_dict['pred_objects'] = pre_objects
-
-        elif self.cfg.OBJ.HEAD_NAME == 'mm':
-            pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
-            if batch_idx % 100 == 0:
-                self.mm_visualize(batch, output['detection_output'], pred_bboxes_list=pred_bboxes_list, global_step=batch_idx, prefix='test')
-            output_dict['output'] = output
-
-        return output_dict
-
-    def on_test_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
-
+        # Visualzation & Evaluation
         tokens = batch['sample_token']
         tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
         if self.cfg.OBJ.HEAD_NAME == 'oft':
-            assert 'pred_objects' in outputs
-            batch_pred_objects = outputs['pred_objects']
-            self.oft_obj_evaluation(tokens, batch_pred_objects)
-
+            pred_objects, objects, grids = self.get_objects(pre_encoded, gt_encoded)
+            self.oft_obj_evaluation(tokens, pred_objects)
         elif self.cfg.OBJ.HEAD_NAME == 'mm':
-            assert 'output' in outputs
-            output = outputs['output']
             pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
-            pred_bboxes_list = [
-                bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
-                for bboxes, scores, labels in pred_bboxes_list
-            ]
-
+            if batch_idx % 150 == 0:
+                self.mm_visualize(
+                    batch,
+                    output['detection_output'],
+                    pred_bboxes_list=pred_bboxes_list,
+                    tokens=tokens,
+                    global_step=batch_idx,
+                    prefix='test'
+                )
             self.mm_obj_evaluation(tokens, pred_bboxes_list)
+
+        return output_dict
 
     def on_test_epoch_start(self):
         self.nusc_annos = {'results': {}, 'meta': None}
