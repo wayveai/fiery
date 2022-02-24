@@ -2,27 +2,15 @@
 # nuScenes dev-kit.
 # Code written by Holger Caesar, Varun Bankiti, and Alex Lang, 2019.
 
-import json
-from lib2to3.pgen2.literals import evalString
 from typing import Any, List, Union
 
 import numpy as np
 from matplotlib import pyplot as plt
 
 from nuscenes import NuScenes
-from nuscenes.eval.common.data_classes import EvalBoxes
-from nuscenes.eval.detection.data_classes import DetectionBox
-from nuscenes.eval.common.render import setup_axis
-from nuscenes.eval.common.utils import boxes_to_sensor
-from nuscenes.eval.detection.constants import TP_METRICS, DETECTION_NAMES, DETECTION_COLORS, TP_METRICS_UNITS, \
-    PRETTY_DETECTION_NAMES, PRETTY_TP_METRICS
-from nuscenes.eval.detection.data_classes import DetectionMetrics, DetectionMetricData, DetectionMetricDataList
-from nuscenes.utils.data_classes import LidarPointCloud
-from nuscenes.utils.geometry_utils import view_points
 from nuscenes.utils.data_classes import Box as NuScenesBox
 import torch
 from fiery.utils.mm_obj_evaluation_utils import output_to_nusc_box
-from fiery.utils.object_evaluation_utils import lidar_egopose_to_world
 from fiery.utils.visualisation import heatmap_image
 from pyquaternion import Quaternion
 from mmdet3d.core import bbox3d2result
@@ -57,14 +45,15 @@ general_to_detection = {
 }
 
 
-def visualize_sample(nusc: NuScenes,
-                     sample_token: str,
-                     pred_boxes: NuScenesBox,
-                     nsweeps: int = 1,
-                     conf_th: float = 0.15,
-                     eval_range: float = 50,
-                     verbose: bool = False,
-                     savepath: str = None) -> None:
+def visualize_sample(
+    nusc: NuScenes,
+    sample_token: str,
+    pred_boxes: NuScenesBox,
+    nsweeps: int = 1,
+    conf_th: float = 0.15,
+    eval_range: float = 50,
+    verbose: bool = False,
+) -> None:
     """
     Visualizes a sample from BEV with annotations and detection results.
     :param nusc: NuScenes object.
@@ -75,7 +64,6 @@ def visualize_sample(nusc: NuScenes,
     :param conf_th: The confidence threshold used to filter negatives.
     :param eval_range: Range in meters beyond which boxes are ignored.
     :param verbose: Whether to print to stdout.
-    :param savepath: If given, saves the the rendering here instead of displaying.
     """
     #####
     # Get Sample Record
@@ -114,25 +102,14 @@ def visualize_sample(nusc: NuScenes,
             name=detection_name,
             token=sample_token,
         )
-        # gt_box = DetectionBox(
-        #     sample_token=sample_token,
-        #     translation=annotation['translation'],
-        #     size=annotation['size'],
-        #     rotation=annotation['rotation'],
-        #     velocity=nusc.box_velocity(annotation['token'])[:2],
-        #     detection_name=detection_name,
-        #     detection_score=-1.0,  # GT samples do not have a score.
-        # )
 
         gt_box.translate(ego_translation)
         gt_box.rotate(ego_rotation)
 
         gt_boxes.append(gt_box)
-    # print("gt_boxes:", gt_boxes)
     #####
     # Get Pred boxes.
     #####
-    # print("pred_boxes: ", pred_boxes)
     # Init axes.
     fig, ax = plt.subplots(1, 1, figsize=(9, 9))
 
@@ -156,30 +133,25 @@ def visualize_sample(nusc: NuScenes,
     ax.set_ylim(-axes_limit, axes_limit)
 
     ax.invert_yaxis()
-    ax.set_xlabel('y')
-    ax.set_ylabel('x')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
 
     # Show / save plot.
     if verbose:
         print('Rendering sample token %s' % sample_token)
     plt.title(sample_token)
-
-    # if savepath is not None:
-    #     plt.savefig(savepath)
-    #     plt.close()
-    # else:
-    #     plt.show()
     return fig
 
 
-def visualize_bbox(pred_bboxes: List[Union[BaseInstance3DBoxes, torch.Tensor]],
-                   gt_bbox_3d: BaseInstance3DBoxes,
-                   gt_label_3d: torch.Tensor,
-                   token: str,
-                   conf_th: float = 0.15,
-                   eval_range: float = 50,
-                   verbose: bool = False,
-                   savepath=None) -> None:
+def visualize_bbox(
+    pred_bboxes: List[Union[BaseInstance3DBoxes, torch.Tensor]],
+    gt_bbox_3d: BaseInstance3DBoxes,
+    gt_label_3d: torch.Tensor,
+    token: str,
+    conf_th: float = 0.15,
+    eval_range: float = 50,
+    verbose: bool = False
+) -> None:
     """Visualizes a sample from BEV with annotations and detection results.
     Args:
         pred_bboxes: Prediction grouped by sample.
@@ -189,15 +161,12 @@ def visualize_bbox(pred_bboxes: List[Union[BaseInstance3DBoxes, torch.Tensor]],
         conf_th: The confidence threshold used to filter negatives.
         eval_range: Range in meters beyond which boxes are ignored.
         verbose: Whether to print to stdout.
-        savepath: If given, saves the the rendering here instead of displaying.
     """
 
     #####
     # Get GT boxes.
     #####
     gt_bboxes = output_to_nusc_box(bbox3d2result(gt_bbox_3d, torch.ones_like(gt_label_3d), gt_label_3d), token)
-
-    # print("gt_boxes:", gt_boxes)
 
     #####
     # Get Pred boxes.
@@ -230,17 +199,12 @@ def visualize_bbox(pred_bboxes: List[Union[BaseInstance3DBoxes, torch.Tensor]],
     # Reverse X, Y axis
     # ax.invert_xaxis()
     ax.invert_yaxis()
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
+    ax.set_xlabel('y')
+    ax.set_ylabel('x')
     # Show / save plot.
     if verbose:
         print('Rendering sample token %s' % token)
     plt.title(token)
-    # if savepath is not None:
-    #     plt.savefig(savepath)
-    #     plt.close()
-    # else:
-    #     plt.show()
     return fig
 
 

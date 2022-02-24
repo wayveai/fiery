@@ -374,28 +374,6 @@ class TrainingModule(pl.LightningModule):
                     output['detection_output'],
                     prefix='train'
                 )
-        #         # tokens = batch['sample_token']
-        #         # tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
-
-        #         # pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
-        #         # pred_bboxes_list = [
-        #         #     bbox3d2result(bboxes, scores, labels)
-        #         #     for bboxes, scores, labels in pred_bboxes_list
-        #         # ]
-        #         # for detection, token in zip(pred_bboxes_list, tokens):
-        #         #     pred_boxes = output_to_nusc_box(detection, token)
-        #         #     # print("pred_boxes: ", pred_boxes)
-        #         #     bbox_image = visualize_sample(
-        #         #         nusc=self.nusc,
-        #         #         sample_token=token,
-        #         #         pred_boxes=pred_boxes,
-        #         #     )
-        #         #     self.logger.experiment.add_figure(
-        #         #         'train_mm_val_visualize_bev',
-        #         #         bbox_image,
-        #         #         global_step=self.global_step
-        #         #     )
-        #         #     break
         #####
         # OBJ Loss Logger
         #####
@@ -476,16 +454,6 @@ class TrainingModule(pl.LightningModule):
                 token,
                 is_eval=True
             )
-            # print("pred_bboxes: ", pred_bboxes)
-            # self.logger.experiment.add_figure(
-            #     'mm_val_visualize_bev',
-            #     visualize_sample(
-            #         nusc=self.nusc,
-            #         sample_token=token,
-            #         pred_boxes=pred_boxes,
-            #     ),
-            #     global_step=self.global_step
-            # )
             for pred_box in pred_boxes:
                 egopose_to_world_trans, egopose_to_world_rot = lidar_egopose_to_world(token, self.nusc)
 
@@ -598,26 +566,6 @@ class TrainingModule(pl.LightningModule):
                     annos += self.nusc_annos['results'][token]
                     # print('len(annos): ', len(annos))
             self.nusc_annos['results'].update({token: annos})
-
-    # def on_validation_batch_end(self, outputs, batch, batch_idx: int, dataloader_idx: int):
-    #     if self.cfg.EVALUATION:
-    #         tokens = batch['sample_token']
-    #         tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
-    #         if self.cfg.OBJ.HEAD_NAME == 'oft':
-    #             assert 'pred_objects' in outputs
-    #             batch_pred_objects = outputs['pred_objects']
-    #             self.oft_obj_evaluation(tokens, batch_pred_objects)
-
-    #         elif self.cfg.OBJ.HEAD_NAME == 'mm':
-    #             assert 'output' in outputs
-    #             output = outputs['output']
-    #             pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
-    #             pred_bboxes_list = [
-    #                 bbox3d2result(bboxes, scores.detach().cpu(), labels.detach().cpu())
-    #                 for bboxes, scores, labels in pred_bboxes_list
-    #             ]
-
-    #             self.mm_obj_evaluation(tokens, pred_bboxes_list)
 
     def on_validation_epoch_start(self):
         if self.cfg.EVALUATION:
