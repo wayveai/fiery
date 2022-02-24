@@ -10,7 +10,6 @@ from fiery.config import get_parser, get_cfg
 from fiery.data import prepare_dataloaders
 from fiery.trainer import TrainingModule
 
-
 def main():
     args = get_parser().parse_args()
     cfg = get_cfg(args)
@@ -44,9 +43,6 @@ def main():
     if cfg.LOSS.SEG_USE is True:
         save_dir_tags.append('segLoss')
         
-    if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
-        save_dir_tags.append('semantic')
-
     if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
         save_dir_tags.append('semantic')
 

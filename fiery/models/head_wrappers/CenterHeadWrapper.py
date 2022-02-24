@@ -1,5 +1,7 @@
 from mmdet3d.models.builder import HEADS
 from mmdet3d.models.dense_heads import CenterHead
+from mmdet3d.models.utils import clip_sigmoid
+import torch
 
 
 @HEADS.register_module()
@@ -82,3 +84,14 @@ class CenterHeadWrapper(CenterHead):
     def get_bboxes(self, batch, preds_dicts):
         img_metas = [item[0] for item in batch['input_metas']]
         return super().get_bboxes(preds_dicts, img_metas)
+
+    def get_heatmaps(self, batch, preds_dicts):
+        gt_bboxes_3d = [item[0] for item in batch['gt_bboxes_3d']]
+        gt_labels_3d = [item[0] for item in batch['gt_labels_3d']]
+        gt_heatmaps, anno_boxes, inds, masks = self.get_targets(gt_bboxes_3d, gt_labels_3d)
+
+        preds_heatmaps = dict()
+        for task_id, preds_dict in enumerate(preds_dicts):
+            pred_heatmaps = torch.clamp(torch.sigmoid(preds_dict[0]['heatmap'].detach()), 1e-4, 1 - 1e-4)
+            preds_heatmaps[f'task_{task_id}.heatmap'] = pred_heatmaps
+        return preds_heatmaps, gt_heatmaps
