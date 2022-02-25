@@ -46,6 +46,9 @@ def main():
     if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
         save_dir_tags.append('semantic')
 
+    if cfg.IMAGE.IMAGE_AUG:
+        save_dir_tags.append('image_aug')
+
     if cfg.MODEL.MM.SEG_CAT_BACKBONE:
         save_dir_tags.append('seg_cat_backbone')
 

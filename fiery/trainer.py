@@ -732,6 +732,7 @@ class TrainingModule(pl.LightningModule):
             self.log(f'test_obj_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
 
         output_dict = {'test_loss': loss}
+
         # Visualzation & Evaluation
         tokens = batch['sample_token']
         tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]

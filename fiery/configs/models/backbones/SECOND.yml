@@ -12,5 +12,5 @@ MODEL:
         type: naiveSyncBN2d
         eps: 0.001
         momentum: 0.01
-      # out_channels: [128, 256, 512]
       out_channels: [128, 256, 512]
+      # out_channels: [64, 128, 256]

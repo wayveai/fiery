@@ -1,5 +1,6 @@
 import os
 from PIL import Image
+from cv2 import resizeWindow
 
 import numpy as np
 import cv2
@@ -192,19 +193,27 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         original_height, original_width = self.cfg.IMAGE.ORIGINAL_HEIGHT, self.cfg.IMAGE.ORIGINAL_WIDTH
         final_height, final_width = self.cfg.IMAGE.FINAL_DIM
 
-        resize_scale = self.cfg.IMAGE.RESIZE_SCALE
-        resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
-        resized_width, resized_height = resize_dims
+        if self.cfg.IMAGE.IMAGE_AUG:
+            low, high = self.cfg.IMAGE.RANDOM_RESIZE_RANGE
+            resize_scale = np.random.uniform(low=low, high=high)
 
-        crop_h = self.cfg.IMAGE.TOP_CROP
-        crop_w = int(max(0, (resized_width - final_width) / 2))
+            resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
+            resized_width, resized_height = resize_dims
+            crop_h = int(max(0, (resized_height - final_height)))
+            crop_w = int(np.random.randint(0, (resized_width - final_width)))
+        else:
+            resize_scale = self.cfg.IMAGE.RESIZE_SCALE
+            resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
+            resized_width, resized_height = resize_dims
+            crop_h = self.cfg.IMAGE.TOP_CROP
+            crop_w = int(max(0, (resized_width - final_width) / 2))
+            if resized_width != final_width:
+                print('Zero padding left and right parts of the image.')
+            if crop_h + final_height != resized_height:
+                print('Zero padding bottom part of the image.')
+
         # Left, top, right, bottom crops.
         crop = (crop_w, crop_h, crop_w + final_width, crop_h + final_height)
-
-        if resized_width != final_width:
-            print('Zero padding left and right parts of the image.')
-        if crop_h + final_height != resized_height:
-            print('Zero padding bottom part of the image.')
 
         return {'scale_width': resize_scale,
                 'scale_height': resize_scale,
@@ -413,6 +422,8 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         locs[:, [1, 0]] = locs[:, [0, 1]]
 
         rots = np.array([b.orientation.yaw_pitch_roll[0] for b in boxes]).reshape(-1, 1)
+
+        # Revise Rotation angle for mirror line:  y = x
         gt_bboxes_3d_list = [locs, dims, -rots + np.pi / 2]
 
         if self.cfg.DATASET.INCLUDE_VELOCITY:

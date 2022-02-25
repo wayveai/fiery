@@ -145,6 +145,8 @@ _C.IMAGE.ORIGINAL_HEIGHT = 900  # Original input RGB camera height
 _C.IMAGE.ORIGINAL_WIDTH = 1600  # Original input RGB camera width
 _C.IMAGE.NAMES = ['CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT']
 _C.IMAGE.N_CAMERA = 6
+_C.IMAGE.IMAGE_AUG = False
+_C.IMAGE.RANDOM_RESIZE_RANGE = [0.44, 0.55]
 
 _C.LIFT = CN()  # image to BEV lifting
 _C.LIFT.X_BOUND = [-40.0, 40.0, 0.5]  #  Forward
@@ -255,7 +257,8 @@ def get_cfg(args=None, cfg_dict=None):
 
     if cfg_dict is not None:
         cfg.merge_from_other_cfg(CfgNode(cfg_dict))
-    cfg.MODEL.MM.HEAD_MAPPING.merge_from_other_cfg(CfgNode({'Anchor3DHeadWrapper': 'pp', 'CenterHeadWrapper': 'cp'}, new_allowed=True))
+    cfg.MODEL.MM.HEAD_MAPPING.merge_from_other_cfg(
+        CfgNode({'Anchor3DHeadWrapper': 'pp', 'CenterHeadWrapper': 'cp'}, new_allowed=True))
     if args is not None:
         if args.config_file:
             cfg.merge_from_file(args.config_file)

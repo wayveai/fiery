@@ -81,6 +81,8 @@ class Anchor3DHeadWrapper(Anchor3DHead):
 
     def loss(self, batch, preds_dicts):
         gt_bboxes = [item[0] for item in batch['gt_bboxes_3d']]
+        # print("gt_bboxes: ", gt_bboxes)
+
         gt_labels = [item[0] for item in batch['gt_labels_3d']]
         input_metas = [item[0] for item in batch['input_metas']]
         preds_dicts = preds_dicts + (gt_bboxes, gt_labels, input_metas,)
