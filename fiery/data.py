@@ -1,6 +1,5 @@
 import os
 from PIL import Image
-from cv2 import resizeWindow
 
 import numpy as np
 import cv2
@@ -14,7 +13,6 @@ from nuscenes.utils.data_classes import Box
 from lyft_dataset_sdk.lyftdataset import LyftDataset
 
 from fiery.utils.geometry import (
-    make_grid,
     resize_and_crop_image,
     update_intrinsics,
     calculate_birds_eye_view_parameters,
@@ -27,7 +25,6 @@ from fiery.utils.instance import convert_instance_mask_to_center_and_offset_labe
 from fiery.utils.lyft_splits import TRAIN_LYFT_INDICES, VAL_LYFT_INDICES
 
 from collections import namedtuple
-from fiery.utils.object_encoder import ObjectEncoder
 import random
 # mmdet3d
 from mmdet3d.core import Box3DMode
@@ -129,9 +126,6 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         # Spatial extent in bird's-eye view, in meters
         self.spatial_extent = (self.cfg.LIFT.X_BOUND[1], self.cfg.LIFT.Y_BOUND[1])
-
-        # Objectencoder
-        self.encoder = ObjectEncoder()
 
     def get_scenes(self):
 
@@ -469,16 +463,6 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         return anns_results
 
-    def _get_gt_encoded(self, objects):
-        grid = make_grid(
-            [self.cfg.LIFT.X_BOUND[1] - self.cfg.LIFT.X_BOUND[0], self.cfg.LIFT.Y_BOUND[1] - self.cfg.LIFT.Y_BOUND[0]],
-            [self.cfg.LIFT.X_BOUND[0], self.cfg.LIFT.Y_BOUND[0], 1.74],
-            self.cfg.LIFT.X_BOUND[2]
-        )
-
-        gt_encoded = self.encoder.encode(objects, grid)
-        return gt_encoded
-
     def get_label(self, rec, instance_map):
         segmentation_np, instance_np, z_position_np, instance_map, attribute_label_np, objects, boxes = \
             self.get_birds_eye_view_label(rec, instance_map)
@@ -488,17 +472,8 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         z_position = torch.from_numpy(z_position_np).float().unsqueeze(0).unsqueeze(0)
         attribute_label = torch.from_numpy(attribute_label_np).long().unsqueeze(0).unsqueeze(0)
 
-        gt_encoded = self._get_gt_encoded(objects)
-        heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask = gt_encoded
-        heatmaps = heatmaps.unsqueeze(0)
-        gt_pos_offsets = gt_pos_offsets.unsqueeze(0)
-        gt_dim_offsets = gt_dim_offsets.unsqueeze(0)
-        gt_ang_offsets = gt_ang_offsets.unsqueeze(0)
-        mask = mask.unsqueeze(0)
-        gt_encoded = heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask
-
         anns_results = self._get_annos(boxes)
-        return segmentation, instance, z_position, instance_map, attribute_label, gt_encoded, anns_results
+        return segmentation, instance, z_position, instance_map, attribute_label, anns_results
 
     def get_future_egomotion(self, rec, index):
         rec_t0 = rec
@@ -564,7 +539,6 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
                 'segmentation', 'instance', 'centerness', 'offset', 'flow', 'future_egomotion',
                 'sample_token',
                 'z_position', 'attribute',
-                'heatmaps', 'gt_pos_offsets', 'gt_dim_offsets', 'gt_ang_offsets', 'mask',
                 'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas',
                 ]
         for key in keys:
@@ -578,27 +552,16 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             rec = self.ixes[index]
 
             images, intrinsics, extrinsics = self.get_input_data(rec)
-            segmentation, instance, z_position, instance_map, attribute_label, gt_encoded, anns_results = \
+            segmentation, instance, z_position, instance_map, attribute_label, anns_results = \
                 self.get_label(rec, instance_map)
-            # Ground true encoded for object detection
-            heatmaps, gt_pos_offsets, gt_dim_offsets, gt_ang_offsets, mask = gt_encoded
 
             # future_egomotion = self.get_future_egomotion(rec, index_t)
             future_egomotion = self.get_future_egomotion(rec, index)
-            # print("anns_results['gt_bboxes_3d']: ", anns_results['gt_bboxes_3d'])
-            # print("anns_results['gt_labels_3d']: ", anns_results['gt_labels_3d'].shape)
-            # print("anns_results['gt_names_3d']: ", anns_results['gt_names_3d'])
 
             data['gt_bboxes_3d'].append(anns_results['gt_bboxes_3d'])
             data['gt_labels_3d'].append(anns_results['gt_labels_3d'])
             data['gt_names_3d'].append(anns_results['gt_names_3d'])
             data['input_metas'].append(anns_results['input_metas'])
-
-            data['heatmaps'].append(heatmaps)
-            data['gt_pos_offsets'].append(gt_pos_offsets)
-            data['gt_dim_offsets'].append(gt_dim_offsets)
-            data['gt_ang_offsets'].append(gt_ang_offsets)
-            data['mask'].append(mask)
 
             data['image'].append(images)
             data['intrinsics'].append(intrinsics)

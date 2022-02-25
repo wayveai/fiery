@@ -110,8 +110,6 @@ class Fiery(nn.Module):
             in_channels=self.future_pred_in_channels,
             # n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
             n_classes=len(SEMANTIC_SEG_WEIGHTS),
-
-            obj_n_classes=self.cfg.OBJ.N_CLASSES,
             predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
         )
 

@@ -70,7 +70,8 @@ def main():
 
     trainer = pl.Trainer(
         gpus=cfg.GPUS,
-        strategy=DDPPlugin(find_unused_parameters=True),
+        strategy=DDPPlugin(find_unused_parameters=False),
+        # strategy=DDPPlugin(find_unused_parameters=True),
         precision=cfg.PRECISION,
         sync_batchnorm=True,
         gradient_clip_val=cfg.GRAD_NORM_CLIP,

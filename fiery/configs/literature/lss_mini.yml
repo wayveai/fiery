@@ -8,7 +8,7 @@ EVA_DIR: "output_dir/lss_mini"
 # EVALUATION: False
 
 GPUS: [0]
-EPOCHS: 3
+EPOCHS: 30
 BATCHSIZE: 4
 VAL_BATCHSIZE: 6
 N_WORKERS: 4

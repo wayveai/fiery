@@ -7,8 +7,8 @@ from pyquaternion import Quaternion
 
 def make_grid(grid_size, grid_offset, grid_res):
     """
-        Constructs an array representing the corners of an orthographic grid 
-        """
+        Constructs an array representing the corners of an orthographic grid.
+    """
     x_length, y_length = grid_size
     x_offset, y_offset, z_offset = grid_offset
 
