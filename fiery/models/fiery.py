@@ -223,7 +223,7 @@ class Fiery(nn.Module):
         detection_backbone_output = self.detection_backbone(detection_input)
         detection_neck_output = self.detection_neck(detection_backbone_output)
         detection_output = self.detection_head(detection_neck_output)
-
+        # print([[d.keys() for d in ld] for ld in detection_output])
         output = {'detection_output': detection_output, **output, **bev_output}
 
         return output

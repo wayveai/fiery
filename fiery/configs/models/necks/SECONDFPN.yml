@@ -11,5 +11,5 @@ MODEL:
       upsample_cfg: 
         type: deconv
         bias: False
-      upsample_strides: [0.5, 1, 2]
+      upsample_strides: [1, 2, 4]
       use_conv_for_no_stride: true
