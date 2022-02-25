@@ -360,9 +360,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
                 # if self.cfg.LOSS.SEG_USE is True:
                 #     if 'vehicle' not in annotation['category_name']:
-                #         continue
-                #     if self.cfg.DATASET.FILTER_INVISIBLE_VEHICLES and int(annotation['visibility_token']) == 1:
-                #         continue
+                #         continue704×256
 
                 if annotation['category_name'] not in general_to_detection:
                     continue
@@ -417,10 +415,16 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
     def _get_annos(self, boxes):
         # gt_bboxes_3d: [N, 7] or [N, 9]
-        locs = np.array([b.center for b in boxes]).reshape(-1, 3)
-        dims = np.array([b.wlh for b in boxes]).reshape(-1, 3)
+        locs = np.array([b.center for b in boxes]).reshape(-1, 3)  # [x, y, z]
+        dims = np.array([b.wlh for b in boxes]).reshape(-1, 3)  # [y_size, x_size, z_size]
+
+        # Swap X, Y axis
+        locs[:, [1, 0]] = locs[:, [0, 1]]
+
         rots = np.array([b.orientation.yaw_pitch_roll[0] for b in boxes]).reshape(-1, 1)
-        gt_bboxes_3d_list = [locs, dims, -rots - np.pi / 2]
+
+        # Revise Rotation angle for mirror line:  y = x
+        gt_bboxes_3d_list = [locs, dims, -rots + np.pi / 2]
 
         if self.cfg.DATASET.INCLUDE_VELOCITY:
             gt_bboxes_3d_list.append(np.zeros((len(boxes), 2)))

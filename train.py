@@ -10,7 +10,6 @@ from fiery.config import get_parser, get_cfg
 from fiery.data import prepare_dataloaders
 from fiery.trainer import TrainingModule
 
-
 def main():
     args = get_parser().parse_args()
     cfg = get_cfg(args)

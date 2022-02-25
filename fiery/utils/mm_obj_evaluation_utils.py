@@ -1,57 +1,10 @@
 import numpy as np
 import pyquaternion
-from nuscenes.utils.data_classes import Box as NuScenesBox
-from nuscenes.eval.detection.data_classes import DetectionBox
-
-# mmdet3d
-from mmdet3d.core import Box3DMode
-from mmdet3d.core.bbox import LiDARInstance3DBoxes
-# from mmdet3d.core.bbox import get_box_type
 from fiery.data import NUSCENE_CLASS_NAMES
+from nuscenes.utils.data_classes import Box as NuScenesBox
 
 
-def mm_bbox3d2result(bboxes, scores, labels, attrs=None, gt=False):
-    """Convert detection results to a list of numpy arrays.
-
-    Args:
-        bboxes (torch.Tensor): Bounding boxes with shape of (n, 5).
-        labels (torch.Tensor): Labels with shape of (n, ).
-        scores (torch.Tensor): Scores with shape of (n, ).
-        attrs (torch.Tensor, optional): Attributes with shape of (n, ). \
-            Defaults to None.
-
-    Returns:
-        dict[str, torch.Tensor]: Bounding box results in cpu mode.
-
-            - boxes_3d (torch.Tensor): 3D boxes.
-            - scores (torch.Tensor): Prediction scores.
-            - labels_3d (torch.Tensor): Box labels.
-            - attrs_3d (torch.Tensor, optional): Box attributes.
-
-    """
-    if gt is False:
-        result_dict = dict(
-            boxes_3d=bboxes.to('cpu'),
-            scores_3d=scores.cpu(),
-            labels_3d=labels.cpu())
-
-        # result_dict = dict(
-        #     boxes_3d=bboxes,
-        #     scores_3d=scores,
-        #     labels_3d=labels)
-    else:
-        result_dict = dict(
-            boxes_3d=bboxes.to('cpu'),
-            # scores_3d=scores.cpu(),
-            labels_3d=labels.cpu())
-
-    if attrs is not None:
-        result_dict['attrs_3d'] = attrs.cpu()
-
-    return result_dict
-
-
-def output_to_nusc_box(detection, token):
+def output_to_nusc_box(detection, token, is_eval=False):
     """Convert the output to the box class in the nuScenes.
 
     Args:
@@ -69,11 +22,14 @@ def output_to_nusc_box(detection, token):
     labels = detection['labels_3d'].detach().cpu().numpy()
 
     box_gravity_center = box3d.gravity_center.detach().cpu().numpy()
+    if is_eval:
+        box_gravity_center = box_gravity_center[:, [1, 0, 2]]
     box_dims = box3d.dims.detach().cpu().numpy()
     box_yaw = box3d.yaw.detach().cpu().numpy()
     # TODO: check whether this is necessary
     # with dir_offset & dir_limit in the head
-    box_yaw = -box_yaw - np.pi / 2
+    if is_eval:
+        box_yaw = -box_yaw + np.pi / 2
 
     box_list = []
     for i in range(len(box3d)):
@@ -96,17 +52,6 @@ def output_to_nusc_box(detection, token):
             name=NUSCENE_CLASS_NAMES[labels[i]],
             token=token,
         )
-
-        # box = DetectionBox(
-        #     translation=box_gravity_center[i],
-        #     size=box_dims[i],
-        #     rotation=quat,
-        #     # label=labels[i],
-        #     detection_score=scores[i],
-        #     velocity=velocity,
-        #     detection_name=NUSCENE_CLASS_NAMES[labels[i]],
-        #     sample_token=token,
-        # )
 
         box_list.append(box)
     return box_list

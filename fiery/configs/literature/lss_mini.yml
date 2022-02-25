@@ -8,7 +8,7 @@ EVA_DIR: "output_dir/lss_mini"
 # EVALUATION: False
 
 GPUS: [0]
-EPOCHS: 30
+EPOCHS: 3
 BATCHSIZE: 4
 VAL_BATCHSIZE: 6
 N_WORKERS: 4
@@ -42,7 +42,8 @@ IMAGE:
   FINAL_DIM: [256, 704]
   RESIZE_SCALE: 0.44
   TOP_CROP: 140
-  IMAGE_AUG: True
+  IMAGE_AUG: False
+
 
 LOSS:
   SEG_USE: True
@@ -51,5 +52,5 @@ OBJ:
   HEAD_NAME: "mm"
 
 MODEL:
-  ENCODER: 
+  ENCODER:
     DOWNSAMPLE: 16
