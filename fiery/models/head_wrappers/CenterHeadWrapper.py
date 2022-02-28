@@ -1,6 +1,5 @@
 from mmdet3d.models.builder import HEADS
 from mmdet3d.models.dense_heads import CenterHead
-from mmdet3d.models.utils import clip_sigmoid
 import torch
 
 
@@ -73,6 +72,7 @@ class CenterHeadWrapper(CenterHead):
             norm_bbox=norm_bbox,
             init_cfg=init_cfg,
         )
+        self.out_size_factor = train_cfg.out_size_factor
 
     def loss(self, batch, preds_dicts, **kwargs):
         gt_bboxes_3d = [item[0] for item in batch['gt_bboxes_3d']]
@@ -95,3 +95,6 @@ class CenterHeadWrapper(CenterHead):
             pred_heatmaps = torch.clamp(torch.sigmoid(preds_dict[0]['heatmap'].detach()), 1e-4, 1 - 1e-4)
             preds_heatmaps[f'task_{task_id}.heatmap'] = pred_heatmaps
         return preds_heatmaps, gt_heatmaps
+
+    def get_additional_tags(self) -> str:
+        return f'osf_{self.out_size_factor}'

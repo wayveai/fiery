@@ -10,6 +10,7 @@ from fiery.config import get_parser, get_cfg
 from fiery.data import prepare_dataloaders
 from fiery.trainer import TrainingModule
 
+
 def main():
     args = get_parser().parse_args()
     cfg = get_cfg(args)
@@ -40,9 +41,16 @@ def main():
         cfg.MODEL.MM.HEAD_MAPPING.get(cfg.MODEL.MM.BBOX_HEAD.type, cfg.MODEL.MM.BBOX_HEAD.type)
     ]
 
+    additional_tags = model.model.detection_head.get_additional_tags()
+    if additional_tags not in (None, '', [], ()):
+        if isinstance(additional_tags, str):
+            save_dir_tags.append(additional_tags)
+        else:
+            save_dir_tags.extend(additional_tags)
+
     if cfg.LOSS.SEG_USE is True:
         save_dir_tags.append('segLoss')
-        
+
     if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
         save_dir_tags.append('semantic')
 
