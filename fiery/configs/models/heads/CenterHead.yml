@@ -14,7 +14,7 @@ MODEL:
         type: CenterPointBBoxCoder
         code_size: 9
         max_num: 500
-        out_size_factor: 2
+        out_size_factor: 4
         pc_range: [-50, -50]
         post_center_range: [-50, -50, -10.0, 50, 50, 10.0]
         score_threshold: 0.1
@@ -62,7 +62,7 @@ MODEL:
         grid_size: [400, 400, 1]
         max_objs: 450
         min_radius: 2
-        out_size_factor: 2
+        out_size_factor: 4
         point_cloud_range: [-50, -50, -5.0, 50, 50, 3.0]
         voxel_size: [0.25, 0.25, 8]
       test_cfg:
@@ -72,7 +72,7 @@ MODEL:
         nms_pre: 1000
         nms_thr: 0.2
         nms_type: rotate
-        out_size_factor: 2
+        out_size_factor: 4
         pc_range: [-50, -50]
         post_center_limit_range: [-50, -50, -10.0, 50, 50, 10.0]
         post_max_size: 100
