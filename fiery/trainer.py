@@ -53,49 +53,50 @@ class TrainingModule(pl.LightningModule):
         # Model
         self.model = Fiery(cfg)
 
-        # Losses
-        self.losses_fn = nn.ModuleDict()
+        if self.cfg.LOSS.SEG_USE:
+            # Losses
+            self.losses_fn = nn.ModuleDict()
 
-        self.losses_fn['segmentation'] = SegmentationLoss(
-            # class_weights=torch.Tensor(self.cfg.SEMANTIC_SEG.WEIGHTS),
-            class_weights=torch.Tensor(SEMANTIC_SEG_WEIGHTS),
+            self.losses_fn['segmentation'] = SegmentationLoss(
+                # class_weights=torch.Tensor(self.cfg.SEMANTIC_SEG.WEIGHTS),
+                class_weights=torch.Tensor(SEMANTIC_SEG_WEIGHTS),
 
-            use_top_k=self.cfg.SEMANTIC_SEG.USE_TOP_K,
-            top_k_ratio=self.cfg.SEMANTIC_SEG.TOP_K_RATIO,
-            future_discount=self.cfg.FUTURE_DISCOUNT,
-        )
-
-        # Uncertainty weighting
-        self.model.segmentation_weight = nn.Parameter(
-            torch.tensor(0.0), requires_grad=True)
-
-        self.metric_iou_val = IntersectionOverUnion(self.n_classes)
-
-        self.losses_fn['instance_center'] = SpatialRegressionLoss(
-            norm=2, future_discount=self.cfg.FUTURE_DISCOUNT
-        )
-        self.losses_fn['instance_offset'] = SpatialRegressionLoss(
-            norm=1, future_discount=self.cfg.FUTURE_DISCOUNT, ignore_index=self.cfg.DATASET.IGNORE_INDEX
-        )
-
-        # Uncertainty weighting
-        self.model.centerness_weight = nn.Parameter(
-            torch.tensor(0.0), requires_grad=True)
-        self.model.offset_weight = nn.Parameter(
-            torch.tensor(0.0), requires_grad=True)
-
-        self.metric_panoptic_val = PanopticMetric(n_classes=self.n_classes)
-
-        if self.cfg.INSTANCE_FLOW.ENABLED:
-            self.losses_fn['instance_flow'] = SpatialRegressionLoss(
-                norm=1, future_discount=self.cfg.FUTURE_DISCOUNT, ignore_index=self.cfg.DATASET.IGNORE_INDEX
+                use_top_k=self.cfg.SEMANTIC_SEG.USE_TOP_K,
+                top_k_ratio=self.cfg.SEMANTIC_SEG.TOP_K_RATIO,
+                future_discount=self.cfg.FUTURE_DISCOUNT,
             )
+
             # Uncertainty weighting
-            self.model.flow_weight = nn.Parameter(
+            self.model.segmentation_weight = nn.Parameter(
                 torch.tensor(0.0), requires_grad=True)
 
-        if self.cfg.PROBABILISTIC.ENABLED:
-            self.losses_fn['probabilistic'] = ProbabilisticLoss()
+            self.metric_iou_val = IntersectionOverUnion(self.n_classes)
+
+            self.losses_fn['instance_center'] = SpatialRegressionLoss(
+                norm=2, future_discount=self.cfg.FUTURE_DISCOUNT
+            )
+            self.losses_fn['instance_offset'] = SpatialRegressionLoss(
+                norm=1, future_discount=self.cfg.FUTURE_DISCOUNT, ignore_index=self.cfg.DATASET.IGNORE_INDEX
+            )
+
+            # Uncertainty weighting
+            self.model.centerness_weight = nn.Parameter(
+                torch.tensor(0.0), requires_grad=True)
+            self.model.offset_weight = nn.Parameter(
+                torch.tensor(0.0), requires_grad=True)
+
+            self.metric_panoptic_val = PanopticMetric(n_classes=self.n_classes)
+
+            if self.cfg.INSTANCE_FLOW.ENABLED:
+                self.losses_fn['instance_flow'] = SpatialRegressionLoss(
+                    norm=1, future_discount=self.cfg.FUTURE_DISCOUNT, ignore_index=self.cfg.DATASET.IGNORE_INDEX
+                )
+                # Uncertainty weighting
+                self.model.flow_weight = nn.Parameter(
+                    torch.tensor(0.0), requires_grad=True)
+
+            if self.cfg.PROBABILISTIC.ENABLED:
+                self.losses_fn['probabilistic'] = ProbabilisticLoss()
 
         self.training_step_count = 0
 
@@ -196,50 +197,51 @@ class TrainingModule(pl.LightningModule):
         # SEG Loss computation
         #####
         seg_loss = {}
-        segmentation_factor = 1 / torch.exp(self.model.segmentation_weight)
-        seg_loss['segmentation'] = segmentation_factor * self.losses_fn['segmentation'](
-            output['segmentation'], labels['segmentation']
-        )
-
-        seg_loss['segmentation_uncertainty'] = 0.5 * self.model.segmentation_weight
-
-        centerness_factor = 1 / (2 * torch.exp(self.model.centerness_weight))
-        seg_loss['instance_center'] = centerness_factor * self.losses_fn['instance_center'](
-            output['instance_center'], labels['centerness']
-        )
-
-        offset_factor = 1 / (2 * torch.exp(self.model.offset_weight))
-        seg_loss['instance_offset'] = offset_factor * self.losses_fn['instance_offset'](
-            output['instance_offset'], labels['offset']
-        )
-
-        seg_loss['centerness_uncertainty'] = 0.5 * self.model.centerness_weight
-        seg_loss['offset_uncertainty'] = 0.5 * self.model.offset_weight
-
-        if self.cfg.INSTANCE_FLOW.ENABLED:
-            flow_factor = 1 / (2 * torch.exp(self.model.flow_weight))
-            seg_loss['instance_flow'] = flow_factor * self.losses_fn['instance_flow'](
-                output['instance_flow'], labels['flow']
+        if self.cfg.LOSS.SEG_USE:
+            segmentation_factor = 1 / torch.exp(self.model.segmentation_weight)
+            seg_loss['segmentation'] = segmentation_factor * self.losses_fn['segmentation'](
+                output['segmentation'], labels['segmentation']
             )
 
-            seg_loss['flow_uncertainty'] = 0.5 * self.model.flow_weight
+            seg_loss['segmentation_uncertainty'] = 0.5 * self.model.segmentation_weight
 
-        if self.cfg.PROBABILISTIC.ENABLED:
-            seg_loss['probabilistic'] = self.cfg.PROBABILISTIC.WEIGHT * \
-                self.losses_fn['probabilistic'](output)
-
-        # Metrics
-        if not is_train:
-            seg_prediction = output['segmentation'].detach()
-            seg_prediction = torch.argmax(seg_prediction, dim=2, keepdims=True)
-            self.metric_iou_val(seg_prediction, labels['segmentation'])
-
-            pred_consistent_instance_seg = predict_instance_segmentation_and_trajectories(
-                output, compute_matched_centers=False
+            centerness_factor = 1 / (2 * torch.exp(self.model.centerness_weight))
+            seg_loss['instance_center'] = centerness_factor * self.losses_fn['instance_center'](
+                output['instance_center'], labels['centerness']
             )
 
-            self.metric_panoptic_val(
-                pred_consistent_instance_seg, labels['instance'])
+            offset_factor = 1 / (2 * torch.exp(self.model.offset_weight))
+            seg_loss['instance_offset'] = offset_factor * self.losses_fn['instance_offset'](
+                output['instance_offset'], labels['offset']
+            )
+
+            seg_loss['centerness_uncertainty'] = 0.5 * self.model.centerness_weight
+            seg_loss['offset_uncertainty'] = 0.5 * self.model.offset_weight
+
+            if self.cfg.INSTANCE_FLOW.ENABLED:
+                flow_factor = 1 / (2 * torch.exp(self.model.flow_weight))
+                seg_loss['instance_flow'] = flow_factor * self.losses_fn['instance_flow'](
+                    output['instance_flow'], labels['flow']
+                )
+
+                seg_loss['flow_uncertainty'] = 0.5 * self.model.flow_weight
+
+            if self.cfg.PROBABILISTIC.ENABLED:
+                seg_loss['probabilistic'] = self.cfg.PROBABILISTIC.WEIGHT * \
+                    self.losses_fn['probabilistic'](output)
+
+            # Metrics
+            if not is_train:
+                seg_prediction = output['segmentation'].detach()
+                seg_prediction = torch.argmax(seg_prediction, dim=2, keepdims=True)
+                self.metric_iou_val(seg_prediction, labels['segmentation'])
+
+                pred_consistent_instance_seg = predict_instance_segmentation_and_trajectories(
+                    output, compute_matched_centers=False
+                )
+
+                self.metric_panoptic_val(
+                    pred_consistent_instance_seg, labels['instance'])
 
         return loss, loss_dict, output, labels, seg_loss
 
@@ -295,7 +297,7 @@ class TrainingModule(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
 
-        if self.cfg.LOSS.SEG_USE is True:
+        if self.cfg.LOSS.SEG_USE:
             #####
             # SEG Loss Logger
             #####
@@ -539,7 +541,7 @@ class TrainingModule(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         loss, loss_dict, output, labels, seg_loss = self.shared_step(batch, False)
 
-        if self.cfg.LOSS.SEG_USE is True:
+        if self.cfg.LOSS.SEG_USE:
             #####
             # SEG Loss Logger
             #####

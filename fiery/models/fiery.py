@@ -1,4 +1,3 @@
-from cv2 import sepFilter2D
 import torch
 import torch.nn as nn
 # import random
@@ -105,27 +104,28 @@ class Fiery(nn.Module):
             SEMANTIC_SEG_WEIGHTS = [1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
         else:
             SEMANTIC_SEG_WEIGHTS = [1.0, 2.0]
-        # Decoder
-        self.decoder = Decoder(
-            in_channels=self.future_pred_in_channels,
-            # n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
-            n_classes=len(SEMANTIC_SEG_WEIGHTS),
-            predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
-        )
+
+        if self.cfg.LOSS.SEG_USE:
+            print("Use segmentation loss to regress.")
+
+            if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
+                print("seg encoded_bev cat backbone.")
+            if self.cfg.MODEL.MM.SEG_ADD_BACKBONE:
+                print("seg encoded_bev add backbone.")
+                self.seg_add_backbone_weight = nn.Parameter(torch.tensor(1.0), requires_grad=True)
+            # Decoder
+            self.decoder = Decoder(
+                in_channels=self.future_pred_in_channels,
+                # n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
+                n_classes=len(SEMANTIC_SEG_WEIGHTS),
+                predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
+            )
 
         self.detection_backbone = build_backbone(self.cfg.MODEL.MM.BBOX_BACKBONE)
         self.detection_neck = build_neck(self.cfg.MODEL.MM.BBOX_NECK)
         self.detection_head = build_head(self.cfg.MODEL.MM.BBOX_HEAD)
 
         set_bn_momentum(self, self.cfg.MODEL.BN_MOMENTUM)
-        if self.cfg.LOSS.SEG_USE:
-            print("Use segmentation loss to regress.")
-
-        if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
-            print("seg encoded_bev cat backbone.")
-        if self.cfg.MODEL.MM.SEG_ADD_BACKBONE:
-            print("seg encoded_bev add backbone.")
-            self.seg_add_backbone_weight = nn.Parameter(torch.tensor(1.0), requires_grad=True)
 
     def create_frustum(self):
         # Create grid in image plane
@@ -207,18 +207,22 @@ class Fiery(nn.Module):
 
         # Predict bird's-eye view outputs
         if self.n_future > 0:
-            bev_output = self.decoder(future_states)
+            decoder_input = future_states
             detection_input = future_states.flatten(0, 1)
             # cls_scores, bbox_preds, dir_cls_preds = self.detection_head([future_states])
         else:
-            bev_output = self.decoder(states[:, -1:])
+            decoder_input = states[:, -1:]
             detection_input = states[:, -1:].flatten(0, 1)
 
-        if self.cfg.MODEL.MM.SEG_ADD_BACKBONE:
-            detection_input = detection_input + self.seg_add_backbone_weight * bev_output['decoded_bev']
+        bev_output = {}
+        if self.cfg.LOSS.SEG_USE:
+            bev_output = self.decoder(decoder_input)
 
-        if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
-            detection_input = torch.cat([detection_input, bev_output['decoded_bev']], dim=-3)
+            if self.cfg.MODEL.MM.SEG_ADD_BACKBONE:
+                detection_input = detection_input + self.seg_add_backbone_weight * bev_output['decoded_bev']
+
+            if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
+                detection_input = torch.cat([detection_input, bev_output['decoded_bev']], dim=-3)
 
         detection_backbone_output = self.detection_backbone(detection_input)
         detection_neck_output = self.detection_neck(detection_backbone_output)
