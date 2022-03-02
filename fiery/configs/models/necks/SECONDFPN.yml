@@ -2,12 +2,13 @@ MODEL:
   MM:
     BBOX_NECK:
       type: SECONDFPN
-      in_channels: [128, 256, 512]
+      # in_channels: [128, 256, 512]
+      in_channels: [64, 128, 256]
+      out_channels: [128, 128, 128]
       norm_cfg: 
         type: BN
         eps: 0.001
         momentum: 0.01
-      out_channels: [256, 256, 256]
       upsample_cfg: 
         type: deconv
         bias: False

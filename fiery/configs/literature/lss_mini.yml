@@ -1,4 +1,4 @@
-_BASE_: ["../single_timeframe.yml", "../models/centerpoint_osf_2.yml"]
+_BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
 # _BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
 
 TAG: "lss"
@@ -8,7 +8,7 @@ EVA_DIR: "output_dir/lss_mini"
 # EVALUATION: False
 
 GPUS: [0]
-EPOCHS: 30
+EPOCHS: 25
 BATCHSIZE: 4
 VAL_BATCHSIZE: 6
 N_WORKERS: 4
@@ -46,7 +46,7 @@ IMAGE:
 
 
 LOSS:
-  SEG_USE: False
+  SEG_USE: True
 
 OBJ:
   HEAD_NAME: "mm"

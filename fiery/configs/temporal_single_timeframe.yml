@@ -3,9 +3,10 @@ _BASE_: 'single_timeframe.yml'
 TAG: 'temporal_single_timeframe'
 
 BATCHSIZE: 4
-PRECISION: 16
+# PRECISION: 16
 
 TIME_RECEPTIVE_FIELD: 3
+N_FUTURE_FRAMES: 0
 
 MODEL:
   BN_MOMENTUM: 0.05

@@ -25,7 +25,7 @@ MODEL:
         reg: [2, 2]
         rot: [2, 2]
         vel: [2, 1]
-      in_channels: 768
+      in_channels: 384
       loss_bbox: 
         loss_weight: 0.25
         reduction: mean

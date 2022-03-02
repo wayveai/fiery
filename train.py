@@ -38,7 +38,11 @@ def main():
         f'imgSize_{cfg.IMAGE.FINAL_DIM[0]}_{cfg.IMAGE.FINAL_DIM[1]}',
         f'resolution_{cfg.LIFT.X_BOUND[2]}_{cfg.LIFT.Y_BOUND[2]}',
         f'img_encoder_ds_{cfg.MODEL.ENCODER.DOWNSAMPLE}',
-        cfg.MODEL.MM.HEAD_MAPPING.get(cfg.MODEL.MM.BBOX_HEAD.type, cfg.MODEL.MM.BBOX_HEAD.type)
+        cfg.MODEL.MM.HEAD_MAPPING.get(cfg.MODEL.MM.BBOX_HEAD.type, cfg.MODEL.MM.BBOX_HEAD.type),
+        f'bb_in_{cfg.MODEL.MM.BBOX_BACKBONE.in_channels}',
+        f'bb_out_{cfg.MODEL.MM.BBOX_BACKBONE.out_channels[0]}_{cfg.MODEL.MM.BBOX_BACKBONE.out_channels[1]}_{cfg.MODEL.MM.BBOX_BACKBONE.out_channels[2]}',
+        f'head_in_{cfg.MODEL.MM.BBOX_HEAD.in_channels}',
+
     ]
 
     additional_tags = model.model.detection_head.get_additional_tags()
