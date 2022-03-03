@@ -154,7 +154,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         # sort by scene, timestamp (only to make chronological viz easier)
         samples.sort(key=lambda x: (x['scene_token'], x['timestamp']))
-        print(len(samples))
+        print("samples: ", len(samples))
         return samples
 
     def get_indices(self):
@@ -506,8 +506,8 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return future_egomotion.unsqueeze(0)
 
     def __len__(self):
-        # return len(self.indices)
-        return len(self.ixes)
+        return len(self.indices)
+        # return len(self.ixes)
 
     def __getitem__(self, index):
         """
@@ -546,10 +546,10 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         instance_map = {}
         # Loop over all the frames in the sequence.
-        # for index_t in self.indices[index]:
-        #     rec = self.ixes[index_t]
-        for i in range(1):
-            rec = self.ixes[index]
+        for index_t in self.indices[index]:
+            rec = self.ixes[index_t]
+        # for i in range(1):
+        #     rec = self.ixes[index]
 
             images, intrinsics, extrinsics = self.get_input_data(rec)
             segmentation, instance, z_position, instance_map, attribute_label, anns_results = \

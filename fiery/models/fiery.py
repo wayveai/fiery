@@ -213,7 +213,7 @@ class Fiery(nn.Module):
         else:
             decoder_input = states[:, -1:]
             detection_input = states[:, -1:].flatten(0, 1)
-
+        # print("detection_input: ", detection_input.shape)
         bev_output = {}
         if self.cfg.LOSS.SEG_USE:
             bev_output = self.decoder(decoder_input)

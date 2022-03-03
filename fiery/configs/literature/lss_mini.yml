@@ -1,4 +1,5 @@
-_BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
+_BASE_: ["../temporal_single_timeframe.yml", "../models/centerpoint.yml"]
+# _BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
 # _BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
 
 TAG: "lss"
@@ -8,9 +9,9 @@ EVA_DIR: "output_dir/lss_mini"
 # EVALUATION: False
 
 GPUS: [0]
-EPOCHS: 25
-BATCHSIZE: 4
-VAL_BATCHSIZE: 6
+EPOCHS: 10
+BATCHSIZE: 2
+VAL_BATCHSIZE: 2
 N_WORKERS: 4
 VALID_FREQ: 1.0
 GRAD_NORM_CLIP: 10
@@ -44,13 +45,8 @@ IMAGE:
   TOP_CROP: 140
   IMAGE_AUG: False
 
-
 LOSS:
   SEG_USE: True
 
 OBJ:
   HEAD_NAME: "mm"
-
-MODEL:
-  ENCODER:
-    DOWNSAMPLE: 16

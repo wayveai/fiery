@@ -55,6 +55,12 @@ def main():
     if cfg.LOSS.SEG_USE is True:
         save_dir_tags.append('segLoss')
 
+    if cfg.MODEL.TEMPORAL_MODEL.INPUT_EGOPOSE:
+        save_dir_tags.append('ego')
+
+    if cfg.MODEL.TEMPORAL_MODEL.NAME == 'temporal_block':
+        save_dir_tags.append(f'tem_{cfg.TIME_RECEPTIVE_FIELD}')
+
     if cfg.SEMANTIC_SEG.NUSCENE_CLASS:
         save_dir_tags.append('semantic')
 

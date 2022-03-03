@@ -316,21 +316,22 @@ class TrainingModule(pl.LightningModule):
             self.log(f'val_obj_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
 
         output_dict = {'val_loss': loss}
+        
         # Visualzation & Evaluation
-        tokens = batch['sample_token']
-        tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+        # tokens = batch['sample_token']
+        # tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
         if self.cfg.OBJ.HEAD_NAME == 'mm':
-            pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
+            # pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
             if batch_idx == 0:
                 self.mm_visualize(
                     batch,
                     output['detection_output'],
-                    pred_bboxes_list=pred_bboxes_list,
-                    tokens=tokens,
+                    # pred_bboxes_list=pred_bboxes_list,
+                    # tokens=tokens,
                     prefix='val'
                 )
-            if self.cfg.EVALUATION:
-                self.mm_obj_evaluation(tokens, pred_bboxes_list)
+            # if self.cfg.EVALUATION:
+            #     self.mm_obj_evaluation(tokens, pred_bboxes_list)
 
         return output_dict
 
