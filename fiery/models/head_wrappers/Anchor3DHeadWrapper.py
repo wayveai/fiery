@@ -80,16 +80,16 @@ class Anchor3DHeadWrapper(Anchor3DHead):
         )
 
     def loss(self, batch, preds_dicts):
-        gt_bboxes = [item[0] for item in batch['gt_bboxes_3d']]
+        gt_bboxes = [item[-1] for item in batch['gt_bboxes_3d']]
         # print("gt_bboxes: ", gt_bboxes)
 
-        gt_labels = [item[0] for item in batch['gt_labels_3d']]
-        input_metas = [item[0] for item in batch['input_metas']]
+        gt_labels = [item[-1] for item in batch['gt_labels_3d']]
+        input_metas = [item[-1] for item in batch['input_metas']]
         preds_dicts = preds_dicts + (gt_bboxes, gt_labels, input_metas,)
         loss_dict = super().loss(*preds_dicts)
         loss_dict = {key: torch.stack(loss_value_list).mean() for key, loss_value_list in loss_dict.items()}
         return loss_dict
 
     def get_bboxes(self, batch, preds_dicts):
-        img_metas = [item[0] for item in batch['input_metas']]
+        img_metas = [item[-1] for item in batch['input_metas']]
         return super().get_bboxes(*preds_dicts, img_metas)

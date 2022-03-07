@@ -49,6 +49,7 @@ class TemporalModel(nn.Module):
         x = x.permute(0, 2, 1, 3, 4)
         x = self.model(x)
         x = x.permute(0, 2, 1, 3, 4).contiguous()
+        # print("FEATURE\n start from: ", self.receptive_field - 1)
         return x[:, (self.receptive_field - 1):]
 
 

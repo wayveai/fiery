@@ -7,3 +7,4 @@ output_dir/
 *.ipynb_checkpoints
 *.ipynb
 *.ckpt
+*.sh

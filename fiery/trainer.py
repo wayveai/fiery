@@ -119,6 +119,9 @@ class TrainingModule(pl.LightningModule):
         gt_instance = batch['instance']
         future_egomotion = batch['future_egomotion']
 
+        # print("LABEL\n segmentation_labels: ", segmentation_labels.shape)
+        # print("LABEL\n start from: ", self.model.receptive_field - 1)
+
         # Warp labels to present's reference frame
         segmentation_labels = cumulative_warp_features_reverse(
             segmentation_labels[:, (self.model.receptive_field - 1):].float(),
@@ -126,6 +129,7 @@ class TrainingModule(pl.LightningModule):
             mode='nearest', spatial_extent=self.spatial_extent,
         ).long().contiguous()
         labels['segmentation'] = segmentation_labels
+        # print("LABEL\n segmentation_labels: ", segmentation_labels.shape)
         future_distribution_inputs.append(segmentation_labels)
 
         # Warp instance labels to present's reference frame
@@ -316,10 +320,10 @@ class TrainingModule(pl.LightningModule):
             self.log(f'val_obj_loss/{key}', value, batch_size=self.cfg.VAL_BATCHSIZE)
 
         output_dict = {'val_loss': loss}
-        
+
         # Visualzation & Evaluation
         # tokens = batch['sample_token']
-        # tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+        # tokens = [tokens_time_dim[-1] for tokens_time_dim in tokens]
         if self.cfg.OBJ.HEAD_NAME == 'mm':
             # pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
             if batch_idx == 0:
@@ -478,10 +482,13 @@ class TrainingModule(pl.LightningModule):
             global_step = self.global_step
         if tokens is None:
             tokens = batch['sample_token']
-            tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+            # print("token: ", len(tokens), len(tokens[0]))
+            # print("tokens:", tokens)
+            tokens = [tokens_time_dim[-1] for tokens_time_dim in tokens]
+            # print("token: ", tokens)
 
-        gt_bboxes_3d = [item[0] for item in batch['gt_bboxes_3d']]
-        gt_labels_3d = [item[0] for item in batch['gt_labels_3d']]
+        gt_bboxes_3d = [item[-1] for item in batch['gt_bboxes_3d']]
+        gt_labels_3d = [item[-1] for item in batch['gt_labels_3d']]
 
         # if pred_bboxes_list is not None, use it. Otherwise get bboxes from the detection head
         if pred_bboxes_list is None:
@@ -564,7 +571,7 @@ class TrainingModule(pl.LightningModule):
 
         # Visualzation & Evaluation
         tokens = batch['sample_token']
-        tokens = [token for tokens_time_dim in tokens for token in tokens_time_dim]
+        tokens = [tokens_time_dim[-1] for tokens_time_dim in tokens]
         if self.cfg.OBJ.HEAD_NAME == 'mm':
             pred_bboxes_list = self.model.detection_head.get_bboxes(batch, output['detection_output'])
             if batch_idx % 150 == 0:

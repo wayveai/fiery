@@ -176,9 +176,11 @@ class Fiery(nn.Module):
                                                    future_egomotions_spatial[:, :(self.receptive_field - 1)]],
                                                   dim=1)
             x = torch.cat([x, future_egomotions_spatial], dim=-3)
+        # print("x.shape: ", x.shape)
 
         #  Temporal model
         states = self.temporal_model(x)
+        # print("states.shape: ", states.shape)
 
         if self.n_future > 0:
             # Split into present and future features (for the probabilistic model)
@@ -211,7 +213,7 @@ class Fiery(nn.Module):
             detection_input = future_states.flatten(0, 1)
             # cls_scores, bbox_preds, dir_cls_preds = self.detection_head([future_states])
         else:
-            decoder_input = states[:, -1:]
+            decoder_input = states[:, -1:] 
             detection_input = states[:, -1:].flatten(0, 1)
         # print("detection_input: ", detection_input.shape)
         bev_output = {}

@@ -75,19 +75,19 @@ class CenterHeadWrapper(CenterHead):
         self.out_size_factor = train_cfg.out_size_factor
 
     def loss(self, batch, preds_dicts, **kwargs):
-        gt_bboxes_3d = [item[0] for item in batch['gt_bboxes_3d']]
-        gt_labels_3d = [item[0] for item in batch['gt_labels_3d']]
+        gt_bboxes_3d = [item[-1] for item in batch['gt_bboxes_3d']]
+        gt_labels_3d = [item[-1] for item in batch['gt_labels_3d']]
         loss_dict = super().loss(gt_bboxes_3d, gt_labels_3d, preds_dicts, **kwargs)
         loss_dict = {key: loss_tensor.mean() for key, loss_tensor in loss_dict.items()}
         return loss_dict
 
     def get_bboxes(self, batch, preds_dicts):
-        img_metas = [item[0] for item in batch['input_metas']]
+        img_metas = [item[-1] for item in batch['input_metas']]
         return super().get_bboxes(preds_dicts, img_metas)
 
     def get_heatmaps(self, batch, preds_dicts):
-        gt_bboxes_3d = [item[0] for item in batch['gt_bboxes_3d']]
-        gt_labels_3d = [item[0] for item in batch['gt_labels_3d']]
+        gt_bboxes_3d = [item[-1] for item in batch['gt_bboxes_3d']]
+        gt_labels_3d = [item[-1] for item in batch['gt_labels_3d']]
         gt_heatmaps, anno_boxes, inds, masks = self.get_targets(gt_bboxes_3d, gt_labels_3d)
 
         preds_heatmaps = dict()
