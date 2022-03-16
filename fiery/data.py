@@ -212,7 +212,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
             # reverse order of current_indices
             current_indices.reverse()
-            print("(current_indices): ", (current_indices))
+            # print("(current_indices): ", (current_indices))
 
             # if is_valid_data:
             indices.append(current_indices)
