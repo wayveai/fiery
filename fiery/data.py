@@ -191,7 +191,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             previous_id = None
             current_indices = []
             for t in range(self.sequence_length):
-                index_t = index - t
+                index_t = index - 2 * t
                 # Going over the dataset size limit.
                 if index_t >= len(self.ixes) or index_t < 0:
                     if previous_id is not None:
@@ -212,7 +212,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
             # reverse order of current_indices
             current_indices.reverse()
-            # print("(current_indices): ", (current_indices))
+            print("(current_indices): ", (current_indices))
 
             # if is_valid_data:
             indices.append(current_indices)
@@ -660,7 +660,7 @@ class DeviceDict(dict):
 
 
 def collate_helper(elems, key):
-    if key in ['gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas', 'sample_token',]:
+    if key in ['gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas', 'sample_token', ]:
         return elems
     else:
         return torch.utils.data.dataloader.default_collate(elems)
