@@ -106,7 +106,15 @@ class TrainingModule(pl.LightningModule):
             self.version = cfg.DATASET.VERSION
             self.dataroot = os.path.join(cfg.DATASET.DATAROOT, self.version)
             self.nusc = NuScenes(version='{}'.format(cfg.DATASET.VERSION), dataroot=self.dataroot, verbose=False)
+
+            # Evaluation for object
             self.nusc_annos = {'results': {}, 'meta': None}
+
+            # Evaluation for seg
+            # 30mx30m, 100mx100m
+            # self.EVALUATION_RANGES = {'30x30': (70, 130), '100x100': (0, 200)}
+            # self.panoptic_metrics = {}
+            # self.iou_metrics = {}
 
     def prepare_future_labels(self, batch):
         labels = {}
@@ -405,6 +413,10 @@ class TrainingModule(pl.LightningModule):
             self.nusc_annos = {'results': {}, 'meta': None}
 
     def on_validation_epoch_end(self) -> None:
+        # Evaluation for seg
+        self.shared_epoch_end(False, 'val')
+
+        # Evaluation for obj
         if self.cfg.EVALUATION:
             self.nusc_annos['meta'] = {
                 "use_camera": True,
@@ -424,45 +436,6 @@ class TrainingModule(pl.LightningModule):
 
         self.trainer.save_checkpoint(os.path.join(self.trainer.log_dir, 'checkpoints',
                                      f'{self.trainer.current_epoch}.ckpt'))
-
-    # def shared_epoch_end(self, step_outputs, is_train):
-    #     # log per class iou metrics
-    #     class_names = ['background', 'dynamic']
-    #     if not is_train:
-    #         scores = self.metric_iou_val.compute()
-    #         for key, value in zip(class_names, scores):
-    #             self.logger.experiment.add_scalar(
-    #                 'val_iou_' + key, value, global_step=self.training_step_count)
-    #         self.metric_iou_val.reset()
-
-    #     if not is_train:
-    #         scores = self.metric_panoptic_val.compute()
-    #         for key, value in scores.items():
-    #             for instance_name, score in zip(['background', 'vehicles'], value):
-    #                 if instance_name != 'background':
-    #                     self.logger.experiment.add_scalar(f'val_{key}_{instance_name}', score.item(),
-    #                                                       global_step=self.training_step_count)
-    #         self.metric_panoptic_val.reset()
-
-    #     self.logger.experiment.add_scalar('segmentation_weight',
-    #                                       1 /
-    #                                       (torch.exp(self.model.segmentation_weight)),
-    #                                       global_step=self.training_step_count)
-    #     self.logger.experiment.add_scalar('centerness_weight',
-    #                                       1 /
-    #                                       (2 * torch.exp(self.model.centerness_weight)),
-    #                                       global_step=self.training_step_count)
-    #     self.logger.experiment.add_scalar('offset_weight', 1 / (2 * torch.exp(self.model.offset_weight)),
-    #                                       global_step=self.training_step_count)
-    #     if self.cfg.INSTANCE_FLOW.ENABLED:
-    #         self.logger.experiment.add_scalar('flow_weight', 1 / (2 * torch.exp(self.model.flow_weight)),
-    #                                           global_step=self.training_step_count)
-
-    # def training_epoch_end(self, step_outputs):
-    #     self.shared_epoch_end(step_outputs, True)
-
-    # def validation_epoch_end(self, step_outputs):
-    #     self.shared_epoch_end(step_outputs, False)
 
     def configure_optimizers(self):
         params = self.model.parameters()
@@ -588,9 +561,19 @@ class TrainingModule(pl.LightningModule):
         return output_dict
 
     def on_test_epoch_start(self):
+        # Evaluation for object
         self.nusc_annos = {'results': {}, 'meta': None}
 
+        # Evaluation for seg
+
+        # for key in self.EVALUATION_RANGES.keys():
+        #     self.panoptic_metrics[key] = PanopticMetric(n_classes=self.n_classes, temporally_consistent=True)
+        #     self.iou_metrics[key] = IntersectionOverUnion(self.n_classes)
+
     def on_test_epoch_end(self) -> None:
+        # Evaluation for seg
+        self.shared_epoch_end(False, 'test')
+        # Evaluation for obj
         self.nusc_annos['meta'] = {
             "use_camera": True,
             "use_lidar": False,
@@ -609,3 +592,44 @@ class TrainingModule(pl.LightningModule):
 
         # self.trainer.save_checkpoint(os.path.join(self.trainer.log_dir, 'checkpoints',
         #                              f'{self.trainer.current_epoch}.ckpt'))
+
+    def shared_epoch_end(self, is_train, prefix='val'):
+        # log per class iou metrics
+        class_names = ['background', 'dynamic']
+        if not is_train:
+            scores = self.metric_iou_val.compute()
+            for key, value in zip(class_names, scores):
+                self.logger.experiment.add_scalar(prefix + '_iou_' + key, value, global_step=self.training_step_count)
+                print(f'{prefix}_iou_{key}: {value}')
+
+            self.metric_iou_val.reset()
+
+        if not is_train:
+            scores = self.metric_panoptic_val.compute()
+            for key, value in scores.items():
+                for instance_name, score in zip(['background', 'vehicles'], value):
+                    if instance_name != 'background':
+                        self.logger.experiment.add_scalar(
+                            f'{prefix}_vpq_{key}_{instance_name}', score.item(), global_step=self.training_step_count)
+                        print(f'{prefix}_vpq_{key}_{instance_name}: {score.item()}')
+            self.metric_panoptic_val.reset()
+
+        # self.logger.experiment.add_scalar('segmentation_weight',
+        #                                   1 /
+        #                                   (torch.exp(self.model.segmentation_weight)),
+        #                                   global_step=self.training_step_count)
+        # self.logger.experiment.add_scalar('centerness_weight',
+        #                                   1 /
+        #                                   (2 * torch.exp(self.model.centerness_weight)),
+        #                                   global_step=self.training_step_count)
+        # self.logger.experiment.add_scalar('offset_weight', 1 / (2 * torch.exp(self.model.offset_weight)),
+        #                                   global_step=self.training_step_count)
+        # if self.cfg.INSTANCE_FLOW.ENABLED:
+        #     self.logger.experiment.add_scalar('flow_weight', 1 / (2 * torch.exp(self.model.flow_weight)),
+        #                                       global_step=self.training_step_count)
+
+    # def training_epoch_end(self, step_outputs):
+    #     self.shared_epoch_end(step_outputs, True)
+
+    # def validation_epoch_end(self, step_outputs):
+    #     self.shared_epoch_end(step_outputs, False)

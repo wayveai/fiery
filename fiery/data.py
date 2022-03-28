@@ -667,6 +667,8 @@ def collate_helper(elems, key):
 
 
 def mm_collact_fn(batch):
+    # print("batch: ", len(batch))
+    # print("batch[0]: ", batch[0])
     elem = batch[0]
     return DeviceDict({key: collate_helper([d[key] for d in batch], key) for key in elem})
 
