@@ -242,6 +242,8 @@ class TrainingModule(pl.LightningModule):
                 seg_loss['probabilistic'] = self.cfg.PROBABILISTIC.WEIGHT * \
                     self.losses_fn['probabilistic'](output)
 
+            # print("labels['segmentation']: ", labels['segmentation'].shape)
+
             # Metrics
             if not is_train:
                 seg_prediction = output['segmentation'].detach()

@@ -73,6 +73,9 @@ def main():
     if cfg.MODEL.MM.SEG_ADD_BACKBONE:
         save_dir_tags.append('seg_add_backbone')
 
+    if cfg.DATASET.INCLUDE_VELOCITY:
+        save_dir_tags.append('vel')
+
     if cfg.DATASET.VERSION == 'v1.0-mini':
         save_dir_tags.append('mini')
 

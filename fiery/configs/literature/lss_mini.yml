@@ -8,7 +8,7 @@ EVA_DIR: "output_dir/lss_mini"
 # TEST_TRAINSET: True
 # EVALUATION: False
 
-GPUS: [1]
+GPUS: [0]
 EPOCHS: 2
 BATCHSIZE: 2
 VAL_BATCHSIZE: 2

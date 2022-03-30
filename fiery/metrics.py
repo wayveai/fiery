@@ -30,6 +30,7 @@ class IntersectionOverUnion(Metric):
 
     def update(self, prediction: torch.Tensor, target: torch.Tensor):
         tps, fps, _, fns, sups = stat_scores(prediction, target, num_classes=self.n_classes, mdmc_reduce='global')
+        # print("tps: ", tps)
 
         self.true_positive += tps
         self.false_positive += fps
@@ -61,7 +62,7 @@ class IntersectionOverUnion(Metric):
         # Remove the ignored class index from the scores.
         if (self.ignore_index is not None) and (0 <= self.ignore_index < self.n_classes):
             scores = torch.cat([scores[:self.ignore_index], scores[self.ignore_index + 1:]])
-
+        # print("score: ", score)
         return scores
 
 

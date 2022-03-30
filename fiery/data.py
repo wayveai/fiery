@@ -354,15 +354,16 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
     def _get_poly_region_in_image(self, instance_annotation, ego_translation, ego_rotation, token):
         box = Box(
-            instance_annotation['translation'],
-            instance_annotation['size'],
-            Quaternion(instance_annotation['rotation']),
+            center=instance_annotation['translation'],
+            size=instance_annotation['size'],
+            orientation=Quaternion(instance_annotation['rotation']),
             name=instance_annotation['category_name'],
+            velocity=self.nusc.box_velocity(instance_annotation['token']),
             token=token,
         )
         box.translate(ego_translation)
         box.rotate(ego_rotation)
-
+        # print("box vel:", box.velocity)
         pts = box.bottom_corners()[:2].T
         pts = np.round(
             (pts - self.bev_start_position[:2] + self.bev_resolution[:2] / 2.0) / self.bev_resolution[:2]).astype(np.int32)
@@ -410,6 +411,9 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             else:
                 instance_attribute = 0
 
+            # print("anno_toke vel: ", self.nusc.box_velocity(annotation_token)[:2])
+            # print("ins_anno['token']: ", self.nusc.box_velocity(annotation['token']))
+
             box, poly_region, z = self._get_poly_region_in_image(annotation,
                                                                  translation,
                                                                  rotation,
@@ -453,13 +457,22 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         rots = np.array([b.orientation.yaw_pitch_roll[0] for b in boxes]).reshape(-1, 1)
 
+        # gt_velocity
+        vels = np.array([b.velocity[:2] for b in boxes]).reshape(-1, 2)
+        # print("vels: ", vels)
+
         # Revise Rotation angle for mirror line:  y = x
         gt_bboxes_3d_list = [locs, dims, -rots + np.pi / 2]
 
-        if self.cfg.DATASET.INCLUDE_VELOCITY:
-            gt_bboxes_3d_list.append(np.zeros((len(boxes), 2)))
+        # if self.cfg.DATASET.INCLUDE_VELOCITY:
+        #     gt_bboxes_3d_list.append(np.zeros((len(boxes), 2)))
 
         gt_bboxes_3d = np.concatenate(gt_bboxes_3d_list, axis=1)
+
+        if self.cfg.DATASET.INCLUDE_VELOCITY:
+            gt_bboxes_3d = np.concatenate([gt_bboxes_3d, vels], axis=-1)
+            
+        # print("gt_bboxes_3d: ", gt_bboxes_3d)
         gt_bboxes_3d = torch.from_numpy(gt_bboxes_3d).float()
 
         gt_bboxes_3d = LiDARInstance3DBoxes(
