@@ -29,8 +29,18 @@ class IntersectionOverUnion(Metric):
         self.add_state('support', default=torch.zeros(n_classes), dist_reduce_fx='sum')
 
     def update(self, prediction: torch.Tensor, target: torch.Tensor):
-        tps, fps, _, fns, sups = stat_scores(prediction, target, num_classes=self.n_classes, mdmc_reduce='global')
+        # tps, fps, _, fns, sups = stat_scores(preds=prediction, target=target,
+        #                                      reduce='macro', num_classes=self.n_classes, mdmc_reduce='global')
+        output = stat_scores(preds=prediction, target=target,
+                             reduce='macro', num_classes=self.n_classes, mdmc_reduce='global')
+        tps = output[:, 0]
+        fps = output[:, 1]
+        _ = output[:, 2]
+        fns = output[:, 3]
+        sups = output[:, 4]
+
         # print("tps: ", tps)
+        # print("sups: ", sups)
 
         self.true_positive += tps
         self.false_positive += fps
@@ -39,6 +49,8 @@ class IntersectionOverUnion(Metric):
 
     def compute(self):
         scores = torch.zeros(self.n_classes, device=self.true_positive.device, dtype=torch.float32)
+
+        # print("self.true_positive: ", self.true_positive)
 
         for class_idx in range(self.n_classes):
             if class_idx == self.ignore_index:
@@ -62,7 +74,10 @@ class IntersectionOverUnion(Metric):
         # Remove the ignored class index from the scores.
         if (self.ignore_index is not None) and (0 <= self.ignore_index < self.n_classes):
             scores = torch.cat([scores[:self.ignore_index], scores[self.ignore_index + 1:]])
+
         # print("score: ", score)
+        # print("n_classes: ", self.n_classes)
+
         return scores
 
 
@@ -98,6 +113,7 @@ class PanopticMetric(Metric):
                 Ground truth instance segmentation.
         """
         batch_size, sequence_length = gt_instance.shape[:2]
+        # print("sequence_length: ", sequence_length)
         # Process labels
         assert gt_instance.min() == 0, 'ID 0 of gt_instance must be background'
         pred_segmentation = (pred_instance > 0).long()
@@ -134,6 +150,7 @@ class PanopticMetric(Metric):
                 'sq': sq,
                 'rq': rq,
                 'denominator': (self.true_positive + self.false_positive / 2 + self.false_negative / 2),
+                'iou': self.iou,
                 }
 
     def panoptic_metrics(self, pred_segmentation, pred_instance, gt_segmentation, gt_instance, unique_id_mapping):
