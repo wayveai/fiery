@@ -46,7 +46,7 @@ IMAGE:
   IMAGE_AUG: False
 
 LOSS:
-  SEG_USE: True
+  SEG_USE: False
 
 OBJ:
   HEAD_NAME: "mm"

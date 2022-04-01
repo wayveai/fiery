@@ -96,5 +96,22 @@ class CenterHeadWrapper(CenterHead):
             preds_heatmaps[f'task_{task_id}.heatmap'] = pred_heatmaps
         return preds_heatmaps, gt_heatmaps
 
+    # def get_velomap(self, batch, preds_dicts):
+    #     gt_bboxes_3d = [item[-1] for item in batch['gt_bboxes_3d']]
+    #     gt_labels_3d = [item[-1] for item in batch['gt_labels_3d']]
+    #     gt_heatmaps, anno_boxes, inds, masks = self.get_targets(gt_bboxes_3d, gt_labels_3d)
+
+    #     pred_velomaps = dict()
+    #     for task_id, preds_dict in enumerate(preds_dicts):
+    #         target_box = anno_boxes[task_id]
+    #         # reconstruct the anno_box from multiple reg heads
+    #         # preds_dict[0]['anno_box'] = torch.cat(
+    #         #     (preds_dict[0]['reg'], preds_dict[0]['height'],
+    #         #      preds_dict[0]['dim'], preds_dict[0]['rot'],
+    #         #      preds_dict[0]['vel']),
+    #         #     dim=1)
+
+    #     return pred_velomaps, gt_velomaps
+
     def get_additional_tags(self) -> str:
         return f'osf_{self.out_size_factor}'
