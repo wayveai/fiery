@@ -416,7 +416,8 @@ class TrainingModule(pl.LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         # Evaluation for seg
-        self.shared_epoch_end(False, 'val')
+        if self.cfg.LOSS.SEG_USE:
+            self.shared_epoch_end(False, 'val')
 
         # Evaluation for obj
         if self.cfg.EVALUATION:
@@ -574,7 +575,8 @@ class TrainingModule(pl.LightningModule):
 
     def on_test_epoch_end(self) -> None:
         # Evaluation for seg
-        self.shared_epoch_end(False, 'test')
+        if self.cfg.LOSS.SEG_USE:
+            self.shared_epoch_end(False, 'test')
         # Evaluation for obj
         self.nusc_annos['meta'] = {
             "use_camera": True,
