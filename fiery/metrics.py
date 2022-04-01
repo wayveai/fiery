@@ -1,13 +1,13 @@
 from typing import Optional
 
 import torch
-from pytorch_lightning.metrics.metric import Metric
-from pytorch_lightning.metrics.functional.classification import stat_scores_multiple_classes
-from pytorch_lightning.metrics.functional.reduction import reduce
+from torchmetrics import Metric
+from torchmetrics.functional import stat_scores
 
 
 class IntersectionOverUnion(Metric):
     """Computes intersection-over-union."""
+
     def __init__(
         self,
         n_classes: int,
@@ -29,7 +29,18 @@ class IntersectionOverUnion(Metric):
         self.add_state('support', default=torch.zeros(n_classes), dist_reduce_fx='sum')
 
     def update(self, prediction: torch.Tensor, target: torch.Tensor):
-        tps, fps, _, fns, sups = stat_scores_multiple_classes(prediction, target, self.n_classes)
+        # tps, fps, _, fns, sups = stat_scores(preds=prediction, target=target,
+        #                                      reduce='macro', num_classes=self.n_classes, mdmc_reduce='global')
+        output = stat_scores(preds=prediction, target=target,
+                             reduce='macro', num_classes=self.n_classes, mdmc_reduce='global')
+        tps = output[:, 0]
+        fps = output[:, 1]
+        _ = output[:, 2]
+        fns = output[:, 3]
+        sups = output[:, 4]
+
+        # print("tps: ", tps)
+        # print("sups: ", sups)
 
         self.true_positive += tps
         self.false_positive += fps
@@ -38,6 +49,8 @@ class IntersectionOverUnion(Metric):
 
     def compute(self):
         scores = torch.zeros(self.n_classes, device=self.true_positive.device, dtype=torch.float32)
+
+        # print("self.true_positive: ", self.true_positive)
 
         for class_idx in range(self.n_classes):
             if class_idx == self.ignore_index:
@@ -60,9 +73,12 @@ class IntersectionOverUnion(Metric):
 
         # Remove the ignored class index from the scores.
         if (self.ignore_index is not None) and (0 <= self.ignore_index < self.n_classes):
-            scores = torch.cat([scores[:self.ignore_index], scores[self.ignore_index+1:]])
+            scores = torch.cat([scores[:self.ignore_index], scores[self.ignore_index + 1:]])
 
-        return reduce(scores, reduction=self.reduction)
+        # print("score: ", score)
+        # print("n_classes: ", self.n_classes)
+
+        return scores
 
 
 class PanopticMetric(Metric):
@@ -97,6 +113,7 @@ class PanopticMetric(Metric):
                 Ground truth instance segmentation.
         """
         batch_size, sequence_length = gt_instance.shape[:2]
+        # print("sequence_length: ", sequence_length)
         # Process labels
         assert gt_instance.min() == 0, 'ID 0 of gt_instance must be background'
         pred_segmentation = (pred_instance > 0).long()
@@ -127,11 +144,13 @@ class PanopticMetric(Metric):
         sq = self.iou / torch.maximum(self.true_positive, torch.ones_like(self.true_positive))
         rq = self.true_positive / denominator
 
+        # If 0, it means there wasn't any detection.
+
         return {'pq': pq,
                 'sq': sq,
                 'rq': rq,
-                # If 0, it means there wasn't any detection.
                 'denominator': (self.true_positive + self.false_positive / 2 + self.false_negative / 2),
+                'iou': self.iou,
                 }
 
     def panoptic_metrics(self, pred_segmentation, pred_instance, gt_segmentation, gt_instance, unique_id_mapping):
@@ -157,7 +176,7 @@ class PanopticMetric(Metric):
         n_all_things = n_instances + n_classes  # Classes + instances.
         n_things_and_void = n_all_things + 1
 
-        # Now 1 is background; 0 is void (not used). 2 is vehicle semantic class but since it overlaps with
+        # Now 1 is background; 0 is void (not used). 2 is vehicle semantic class but since it overlaps with
         # instances, it is not present.
         # and the rest are instance ids starting from 3
         prediction, pred_to_cls = self.combine_mask(pred_segmentation, pred_instance, n_classes, n_all_things)

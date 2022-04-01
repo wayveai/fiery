@@ -2,5 +2,9 @@ _BASE_: '../single_timeframe.yml'
 
 TAG: 'lift_splat_setting'
 
+GPUS: [0]
+EPOCHS: 40
+BATCHSIZE: 8
+
 DATASET:
   FILTER_INVISIBLE_VEHICLES: False

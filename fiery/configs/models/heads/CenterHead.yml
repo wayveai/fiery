@@ -1,0 +1,81 @@
+DATASET:
+  INCLUDE_VELOCITY: True
+
+LIFT:
+  X_BOUND: [-50.0, 50.0, 0.25] #  Forwards
+  Y_BOUND: [-50.0, 50.0, 0.25] # Sides
+  Z_BOUND: [-10.0, 10.0, 20.0] # Height
+
+MODEL:
+  MM:
+    BBOX_HEAD:
+      type: CenterHeadWrapper
+      bbox_coder:
+        type: CenterPointBBoxCoder
+        code_size: 9
+        max_num: 500
+        out_size_factor: 4
+        pc_range: [-50, -50]
+        post_center_range: [-50, -50, -10.0, 50, 50, 10.0]
+        score_threshold: 0.1
+        voxel_size: [0.25, 0.25]
+      common_heads: # [out_channel, num_conv]
+        dim: [3, 2]
+        height: [1, 2]
+        reg: [2, 2]
+        rot: [2, 2]
+        vel: [2, 1]
+      in_channels: 384
+      loss_bbox: 
+        loss_weight: 0.25
+        reduction: mean
+        type: L1Loss
+      loss_cls: 
+        type: GaussianFocalLoss
+        reduction: mean
+      norm_bbox: true
+      separate_head: 
+        type: SeparateHead
+        final_kernel: 3
+        head_conv: 128
+        init_bias: -2.19
+      share_conv_channel: 128
+      tasks:
+      - class_names: [car, construction_vehicle, bus, trailer, barrier, motorcycle, bicycle, pedestrian, traffic_cone]
+        num_class: 10
+      # - class_names: [car]
+      #   num_class: 1
+      # - class_names: [truck, construction_vehicle]
+      #   num_class: 2
+      # - class_names: [bus, trailer]
+      #   num_class: 2
+      # - class_names: [barrier]
+      #   num_class: 1
+      # - class_names: [motorcycle, bicycle]
+      #   num_class: 2
+      # - class_names: [pedestrian, traffic_cone]
+      #   num_class: 2
+      train_cfg:
+        code_weights: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0, 0]
+        dense_reg: 1
+        gaussian_overlap: 0.1
+        grid_size: [400, 400, 1]
+        max_objs: 450
+        min_radius: 2
+        out_size_factor: 4
+        point_cloud_range: [-50, -50, -5.0, 50, 50, 3.0]
+        voxel_size: [0.25, 0.25, 8]
+      test_cfg:
+        # max_per_img: 70
+        max_pool_nms: false
+        min_radius: [4, 12, 10, 1, 0.85, 0.175]
+        nms_pre: 1000
+        nms_thr: 0.2
+        nms_type: rotate
+        out_size_factor: 4
+        pc_range: [-50, -50]
+        post_center_limit_range: [-50, -50, -10.0, 50, 50, 10.0]
+        post_max_size: 100
+        pre_max_size: 1000
+        score_threshold: 0.1
+        voxel_size: [0.25, 0.25]

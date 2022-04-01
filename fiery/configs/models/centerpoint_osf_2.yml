@@ -1,0 +1,13 @@
+_BASE_: "centerpoint.yml"
+
+MODEL:
+  MM:
+    BBOX_HEAD:
+      bbox_coder:
+        out_size_factor: 2
+      train_cfg:
+        out_size_factor: 2
+      test_cfg:
+        out_size_factor: 2
+    BBOX_NECK:
+      upsample_strides: [1, 2, 4]

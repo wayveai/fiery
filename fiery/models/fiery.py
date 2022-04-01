@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+# import random
 
 from fiery.models.encoder import Encoder
 from fiery.models.temporal_model import TemporalModelIdentity, TemporalModel
@@ -8,6 +9,9 @@ from fiery.models.future_prediction import FuturePrediction
 from fiery.models.decoder import Decoder
 from fiery.utils.network import pack_sequence_dim, unpack_sequence_dim, set_bn_momentum
 from fiery.utils.geometry import cumulative_warp_features, calculate_birds_eye_view_parameters, VoxelsSumming
+from fiery.models.head_wrappers.CenterHeadWrapper import CenterHeadWrapper
+from fiery.models.head_wrappers.Anchor3DHeadWrapper import Anchor3DHeadWrapper
+from mmdet3d.models import build_head, build_backbone, build_neck
 
 
 class Fiery(nn.Module):
@@ -96,19 +100,37 @@ class Fiery(nn.Module):
                 n_gru_blocks=self.cfg.MODEL.FUTURE_PRED.N_GRU_BLOCKS,
                 n_res_layers=self.cfg.MODEL.FUTURE_PRED.N_RES_LAYERS,
             )
+        if self.cfg.SEMANTIC_SEG.NUSCENE_CLASS:
+            SEMANTIC_SEG_WEIGHTS = [1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+        else:
+            SEMANTIC_SEG_WEIGHTS = [1.0, 2.0]
 
-        # Decoder
-        self.decoder = Decoder(
-            in_channels=self.future_pred_in_channels,
-            n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
-            predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
-        )
+        if self.cfg.LOSS.SEG_USE:
+            print("Use segmentation loss to regress.")
+
+            if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
+                print("seg encoded_bev cat backbone.")
+            if self.cfg.MODEL.MM.SEG_ADD_BACKBONE:
+                print("seg encoded_bev add backbone.")
+                self.seg_add_backbone_weight = nn.Parameter(torch.tensor(1.0), requires_grad=True)
+            # Decoder
+            self.decoder = Decoder(
+                in_channels=self.future_pred_in_channels,
+                # n_classes=len(self.cfg.SEMANTIC_SEG.WEIGHTS),
+                n_classes=len(SEMANTIC_SEG_WEIGHTS),
+                predict_future_flow=self.cfg.INSTANCE_FLOW.ENABLED,
+            )
+
+        self.detection_backbone = build_backbone(self.cfg.MODEL.MM.BBOX_BACKBONE)
+        self.detection_neck = build_neck(self.cfg.MODEL.MM.BBOX_NECK)
+        self.detection_head = build_head(self.cfg.MODEL.MM.BBOX_HEAD)
 
         set_bn_momentum(self, self.cfg.MODEL.BN_MOMENTUM)
 
     def create_frustum(self):
         # Create grid in image plane
         h, w = self.cfg.IMAGE.FINAL_DIM
+
         downsampled_h, downsampled_w = h // self.encoder_downsample, w // self.encoder_downsample
 
         # Depth grid
@@ -123,7 +145,7 @@ class Fiery(nn.Module):
         y_grid = y_grid.view(1, downsampled_h, 1).expand(n_depth_slices, downsampled_h, downsampled_w)
 
         # Dimension (n_depth_slices, downsampled_h, downsampled_w, 3)
-        # containing data points in the image: left-right, top-bottom, depth
+        # containing data points in the image: left-right, top-bottom, depth
         frustum = torch.stack((x_grid, y_grid, depth_grid), -1)
         return nn.Parameter(frustum, requires_grad=False)
 
@@ -151,11 +173,14 @@ class Fiery(nn.Module):
             future_egomotions_spatial = future_egomotion.view(b, s, c, 1, 1).expand(b, s, c, h, w)
             # at time 0, no egomotion so feed zero vector
             future_egomotions_spatial = torch.cat([torch.zeros_like(future_egomotions_spatial[:, :1]),
-                                                   future_egomotions_spatial[:, :(self.receptive_field-1)]], dim=1)
+                                                   future_egomotions_spatial[:, :(self.receptive_field - 1)]],
+                                                  dim=1)
             x = torch.cat([x, future_egomotions_spatial], dim=-3)
+        # print("x.shape: ", x.shape)
 
         #  Temporal model
         states = self.temporal_model(x)
+        # print("states.shape: ", states.shape)
 
         if self.n_future > 0:
             # Split into present and future features (for the probabilistic model)
@@ -184,10 +209,28 @@ class Fiery(nn.Module):
 
         # Predict bird's-eye view outputs
         if self.n_future > 0:
-            bev_output = self.decoder(future_states)
+            decoder_input = future_states
+            detection_input = future_states.flatten(0, 1)
+            # cls_scores, bbox_preds, dir_cls_preds = self.detection_head([future_states])
         else:
-            bev_output = self.decoder(states[:, -1:])
-        output = {**output, **bev_output}
+            decoder_input = states[:, -1:] 
+            detection_input = states[:, -1:].flatten(0, 1)
+        # print("detection_input: ", detection_input.shape)
+        bev_output = {}
+        if self.cfg.LOSS.SEG_USE:
+            bev_output = self.decoder(decoder_input)
+
+            if self.cfg.MODEL.MM.SEG_ADD_BACKBONE:
+                detection_input = detection_input + self.seg_add_backbone_weight * bev_output['decoded_bev']
+
+            if self.cfg.MODEL.MM.SEG_CAT_BACKBONE:
+                detection_input = torch.cat([detection_input, bev_output['decoded_bev']], dim=-3)
+
+        detection_backbone_output = self.detection_backbone(detection_input)
+        detection_neck_output = self.detection_neck(detection_backbone_output)
+        detection_output = self.detection_head(detection_neck_output)
+        # print([[d.keys() for d in ld] for ld in detection_output])
+        output = {'detection_output': detection_output, **output, **bev_output}
 
         return output
 
@@ -199,23 +242,33 @@ class Fiery(nn.Module):
         # Add batch, camera dimension, and a dummy dimension at the end
         points = self.frustum.unsqueeze(0).unsqueeze(0).unsqueeze(-1)
 
+        # print("frustum.shape: ", self.frustum.shape)
+        # print("point.shape: ", points.shape)
+
         # Camera to ego reference frame
         points = torch.cat((points[:, :, :, :, :, :2] * points[:, :, :, :, :, 2:3], points[:, :, :, :, :, 2:3]), 5)
         combined_transformation = rotation.matmul(torch.inverse(intrinsics))
         points = combined_transformation.view(B, N, 1, 1, 1, 3, 3).matmul(points).squeeze(-1)
         points += translation.view(B, N, 1, 1, 1, 3)
+        # print("transform point.shape: ", pointss.shape)
 
         # The 3 dimensions in the ego reference frame are: (forward, sides, height)
         return points
 
     def encoder_forward(self, x):
         # batch, n_cameras, channels, height, width
+        # r = random.randint(0, 5)
+        # x = x[:, r, :, :, :].unsqueeze(1)
+        # print("x.shape: ", x.shape)
         b, n, c, h, w = x.shape
 
         x = x.view(b * n, c, h, w)
         x = self.encoder(x)
+        # print("x.shape: ", x.shape)
+
         x = x.view(b, n, *x.shape[1:])
         x = x.permute(0, 1, 3, 4, 5, 2)
+        # print("x.shape: ", x.shape)
 
         return x
 
@@ -226,7 +279,10 @@ class Fiery(nn.Module):
         output = torch.zeros(
             (batch, c, self.bev_dimension[0], self.bev_dimension[1]), dtype=torch.float, device=x.device
         )
-
+        # centers = torch.zeros(
+        #     (batch, c, self.bev_dimension[0] - 1, self.bev_dimension[1] - 1), dtype=torch.float, device=x.device
+        # )
+        # print("geometry.shape: ", geometry.shape)
         # Number of 3D points
         N = n * d * h * w
         for b in range(batch):
@@ -235,25 +291,33 @@ class Fiery(nn.Module):
 
             # Convert positions to integer indices
             geometry_b = ((geometry[b] - (self.bev_start_position - self.bev_resolution / 2.0)) / self.bev_resolution)
+            # print("geometry.shape: ", geometry.shape)
+            # print("geometry: ", geometry)
+            # print("geometry_b[0][0].shape: ", geometry_b[0][0].shape)
+            # print("geometry_b: ", geometry_b[0][0])
+
             geometry_b = geometry_b.view(N, 3).long()
+
+            # print("(self.bev_start_position - self.bev_resolution / 2.0): ",
+            #       (self.bev_start_position - self.bev_resolution / 2.0))
 
             # Mask out points that are outside the considered spatial extent.
             mask = (
-                    (geometry_b[:, 0] >= 0)
-                    & (geometry_b[:, 0] < self.bev_dimension[0])
-                    & (geometry_b[:, 1] >= 0)
-                    & (geometry_b[:, 1] < self.bev_dimension[1])
-                    & (geometry_b[:, 2] >= 0)
-                    & (geometry_b[:, 2] < self.bev_dimension[2])
+                (geometry_b[:, 0] >= 0)
+                & (geometry_b[:, 0] < self.bev_dimension[0])
+                & (geometry_b[:, 1] >= 0)
+                & (geometry_b[:, 1] < self.bev_dimension[1])
+                & (geometry_b[:, 2] >= 0)
+                & (geometry_b[:, 2] < self.bev_dimension[2])
             )
             x_b = x_b[mask]
             geometry_b = geometry_b[mask]
 
             # Sort tensors so that those within the same voxel are consecutives.
             ranks = (
-                    geometry_b[:, 0] * (self.bev_dimension[1] * self.bev_dimension[2])
-                    + geometry_b[:, 1] * (self.bev_dimension[2])
-                    + geometry_b[:, 2]
+                geometry_b[:, 0] * (self.bev_dimension[1] * self.bev_dimension[2])
+                + geometry_b[:, 1] * (self.bev_dimension[2])
+                + geometry_b[:, 2]
             )
             ranks_indices = ranks.argsort()
             x_b, geometry_b, ranks = x_b[ranks_indices], geometry_b[ranks_indices], ranks[ranks_indices]
@@ -270,6 +334,10 @@ class Fiery(nn.Module):
             bev_feature = bev_feature.squeeze(0)
 
             output[b] = bev_feature
+            # centers[b] = (bev_feature[:, 1:, 1:] + bev_feature[:, :-1, :-1]) / 2.0
+            # print("centers[b].shape: ", centers[b].shape)
+            # print("bev_feature.shape: ", bev_feature.shape)
+            # print("output: ", output)
 
         return output
 
@@ -295,6 +363,8 @@ class Fiery(nn.Module):
             noise: a sample from a (0, 1) gaussian with shape (b, s, latent_dim). If None, will sample in function
 
         Returns
+
+
         -------
             sample: sample taken from present/future distribution, broadcast to shape (b, s, latent_dim, h, w)
             present_distribution_mu: shape (b, s, latent_dim)

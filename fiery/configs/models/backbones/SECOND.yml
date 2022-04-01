@@ -1,0 +1,16 @@
+MODEL:
+  MM:
+    SEG_CAT_BACKBONE: False
+    SEG_ADD_BACKBONE: False
+
+    BBOX_BACKBONE: 
+      type: SECOND
+      layer_nums: [3, 5, 5]
+      layer_strides: [2, 2, 2]
+      norm_cfg: 
+        type: naiveSyncBN2d
+        eps: 0.001
+        momentum: 0.01
+      in_channels: 64
+      # out_channels: [128, 256, 512]
+      out_channels: [64, 128, 256]

@@ -1,8 +1,8 @@
 TAG: 'single_timeframe_model'
 
-GPUS: [0, 1]
+GPUS: [2]
 
-BATCHSIZE: 8
+BATCHSIZE: 4
 
 TIME_RECEPTIVE_FIELD: 1
 N_FUTURE_FRAMES: 0
@@ -19,6 +19,6 @@ INSTANCE_FLOW:
   ENABLED: False
 
 OPTIMIZER:
-  LR: 1e-3
+  LR: 2.5e-4
 
 N_WORKERS: 10

@@ -1,8 +1,10 @@
 tensorboard_logs/
 example_data/
 output_vis/
+output_dir/
 .idea/
 *.pyc
 *.ipynb_checkpoints
 *.ipynb
 *.ckpt
+*.sh

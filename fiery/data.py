@@ -24,6 +24,66 @@ from fiery.utils.geometry import (
 from fiery.utils.instance import convert_instance_mask_to_center_and_offset_label
 from fiery.utils.lyft_splits import TRAIN_LYFT_INDICES, VAL_LYFT_INDICES
 
+from collections import namedtuple
+import random
+# mmdet3d
+from mmdet3d.core import Box3DMode
+from mmdet3d.core.bbox import LiDARInstance3DBoxes
+# from mmdet3d.core.bbox import get_box_type
+
+
+general_to_detection = {
+    "human.pedestrian.adult": "pedestrian",
+    "human.pedestrian.child": "pedestrian",
+    # "human.pedestrian.wheelchair": "ignore",
+    # "human.pedestrian.stroller": "ignore",
+    # "human.pedestrian.personal_mobility": "ignore",
+    "human.pedestrian.police_officer": "pedestrian",
+    "human.pedestrian.construction_worker": "pedestrian",
+    # "animal": "ignore",
+    "vehicle.car": "car",
+    "vehicle.motorcycle": "motorcycle",
+    "vehicle.bicycle": "bicycle",
+    "vehicle.bus.bendy": "bus",
+    "vehicle.bus.rigid": "bus",
+    "vehicle.truck": "truck",
+    "vehicle.construction": "construction_vehicle",
+    # "vehicle.emergency.ambulance": "ignore",
+    # "vehicle.emergency.police": "ignore",
+    "vehicle.trailer": "trailer",
+    "movable_object.barrier": "barrier",
+    "movable_object.trafficcone": "traffic_cone",
+    # "movable_object.pushable_pullable": "ignore",
+    # "movable_object.debris": "ignore",
+    # "static_object.bicycle_rack": "ignore",
+}
+
+NUSCENE_CLASS_NAMES = [
+    'car',
+    'truck',
+    'trailer',
+    'bus',
+    'construction_vehicle',
+    'bicycle',
+    'motorcycle',
+    'pedestrian',
+    'traffic_cone',
+    'barrier',
+    # "ignore",
+]
+
+ObjectData = namedtuple(
+    'ObjectData',
+    [
+        'classname',
+        'position',
+        'dimensions',
+        'angle',
+        'score',
+        'rec',
+    ]
+)
+
 
 class FuturePredictionDataset(torch.utils.data.Dataset):
     def __init__(self, nusc, is_train, cfg):
@@ -44,7 +104,8 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         self.scenes = self.get_scenes()
         self.ixes = self.prepro()
-        self.indices = self.get_indices()
+        # self.indices = self.get_indices()
+        self.indices = self.get_mm_indices()
 
         # Image resizing and cropping
         self.augmentation_parameters = self.get_resizing_and_cropping_parameters()
@@ -53,7 +114,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         self.normalise_image = torchvision.transforms.Compose(
             [torchvision.transforms.ToTensor(),
              torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ]
+             ]
         )
 
         # Bird's-eye view parameters
@@ -78,7 +139,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         else:
             # filter by scene split
             split = {'v1.0-trainval': {True: 'train', False: 'val'},
-                     'v1.0-mini': {True: 'mini_train', False: 'mini_val'},}[
+                     'v1.0-mini': {True: 'mini_train', False: 'mini_val'}, }[
                 self.nusc.version
             ][self.is_train]
 
@@ -94,7 +155,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         # sort by scene, timestamp (only to make chronological viz easier)
         samples.sort(key=lambda x: (x['scene_token'], x['timestamp']))
-
+        print("samples: ", len(samples))
         return samples
 
     def get_indices(self):
@@ -123,23 +184,66 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         return np.asarray(indices)
 
+    def get_mm_indices(self):
+        indices = []
+        for index in range(len(self.ixes)):
+            previous_rec = None
+            previous_id = None
+            current_indices = []
+            for t in range(self.sequence_length):
+                index_t = index - 2 * t
+                # Going over the dataset size limit.
+                if index_t >= len(self.ixes) or index_t < 0:
+                    if previous_id is not None:
+                        index_t = previous_id
+                    else:
+                        index_t = index
+
+                rec = self.ixes[index_t]
+
+                # Check if scene is the same
+                if (previous_rec is not None) and (rec['scene_token'] != previous_rec['scene_token']):
+                    current_indices.append(previous_id)
+                else:
+                    current_indices.append(index_t)
+
+                previous_rec = rec
+                previous_id = index_t
+
+            # reverse order of current_indices
+            current_indices.reverse()
+            # print("(current_indices): ", (current_indices))
+
+            # if is_valid_data:
+            indices.append(current_indices)
+
+        return np.asarray(indices)
+
     def get_resizing_and_cropping_parameters(self):
         original_height, original_width = self.cfg.IMAGE.ORIGINAL_HEIGHT, self.cfg.IMAGE.ORIGINAL_WIDTH
         final_height, final_width = self.cfg.IMAGE.FINAL_DIM
 
-        resize_scale = self.cfg.IMAGE.RESIZE_SCALE
-        resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
-        resized_width, resized_height = resize_dims
+        if self.cfg.IMAGE.IMAGE_AUG:
+            low, high = self.cfg.IMAGE.RANDOM_RESIZE_RANGE
+            resize_scale = np.random.uniform(low=low, high=high)
 
-        crop_h = self.cfg.IMAGE.TOP_CROP
-        crop_w = int(max(0, (resized_width - final_width) / 2))
+            resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
+            resized_width, resized_height = resize_dims
+            crop_h = int(max(0, (resized_height - final_height)))
+            crop_w = int(np.random.randint(0, (resized_width - final_width)))
+        else:
+            resize_scale = self.cfg.IMAGE.RESIZE_SCALE
+            resize_dims = (int(original_width * resize_scale), int(original_height * resize_scale))
+            resized_width, resized_height = resize_dims
+            crop_h = self.cfg.IMAGE.TOP_CROP
+            crop_w = int(max(0, (resized_width - final_width) / 2))
+            if resized_width != final_width:
+                print('Zero padding left and right parts of the image.')
+            if crop_h + final_height != resized_height:
+                print('Zero padding bottom part of the image.')
+
         # Left, top, right, bottom crops.
         crop = (crop_w, crop_h, crop_w + final_width, crop_h + final_height)
-
-        if resized_width != final_width:
-            print('Zero padding left and right parts of the image.')
-        if crop_h + final_height != resized_height:
-            print('Zero padding bottom part of the image.')
 
         return {'scale_width': resize_scale,
                 'scale_height': resize_scale,
@@ -163,8 +267,8 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         intrinsics = []
         extrinsics = []
         cameras = self.cfg.IMAGE.NAMES
-
-        # The extrinsics we want are from the camera sensor to "flat egopose" as defined
+        n_camera = self.cfg.IMAGE.N_CAMERA
+        # The extrinsics we want are from the camera sensor to "flat egopose" as defined
         # https://github.com/nutonomy/nuscenes-devkit/blob/9b492f76df22943daf1dc991358d3d606314af27/python-sdk/nuscenes/nuscenes.py#L279
         # which corresponds to the position of the lidar.
         # This is because the labels are generated by projecting the 3D bounding box in this lidar's reference frame.
@@ -179,8 +283,9 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             np.hstack((lidar_rotation.rotation_matrix, lidar_translation)),
             np.array([0, 0, 0, 1])
         ])
-
-        for cam in cameras:
+        cams = random.sample(cameras, n_camera)
+        # print("cams: ", cams)
+        for cam in cams:
             camera_sample = self.nusc.get('sample_data', rec['data'][cam])
 
             # Transformation from world to egopose
@@ -239,11 +344,34 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return images, intrinsics, extrinsics
 
     def _get_top_lidar_pose(self, rec):
-        egopose = self.nusc.get('ego_pose', self.nusc.get('sample_data', rec['data']['LIDAR_TOP'])['ego_pose_token'])
+        egopose = self.nusc.get('ego_pose',
+                                self.nusc.get('sample_data',
+                                              rec['data']['LIDAR_TOP'])['ego_pose_token'])
         trans = -np.array(egopose['translation'])
         yaw = Quaternion(egopose['rotation']).yaw_pitch_roll[0]
         rot = Quaternion(scalar=np.cos(yaw / 2), vector=[0, 0, np.sin(yaw / 2)]).inverse
         return trans, rot
+
+    def _get_poly_region_in_image(self, instance_annotation, ego_translation, ego_rotation, token):
+        box = Box(
+            center=instance_annotation['translation'],
+            size=instance_annotation['size'],
+            orientation=Quaternion(instance_annotation['rotation']),
+            name=instance_annotation['category_name'],
+            velocity=self.nusc.box_velocity(instance_annotation['token']),
+            token=token,
+        )
+        box.translate(ego_translation)
+        box.rotate(ego_rotation)
+        # print("box vel:", box.velocity)
+        pts = box.bottom_corners()[:2].T
+        pts = np.round(
+            (pts - self.bev_start_position[:2] + self.bev_resolution[:2] / 2.0) / self.bev_resolution[:2]).astype(np.int32)
+        pts[:, [1, 0]] = pts[:, [0, 1]]
+
+        z = box.bottom_corners()[2, 0]
+
+        return box, pts, z
 
     def get_birds_eye_view_label(self, rec, instance_map):
         translation, rotation = self._get_top_lidar_pose(rec)
@@ -252,14 +380,20 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         instance = np.zeros((self.bev_dimension[0], self.bev_dimension[1]))
         z_position = np.zeros((self.bev_dimension[0], self.bev_dimension[1]))
         attribute_label = np.zeros((self.bev_dimension[0], self.bev_dimension[1]))
-
+        objects = list()
+        boxes = []
         for annotation_token in rec['anns']:
-            # Filter out all non vehicle instances
+            # Filter out all non vehicle instances -> no -> for all classes !!
             annotation = self.nusc.get('sample_annotation', annotation_token)
 
             if not self.is_lyft:
                 # NuScenes filter
-                if 'vehicle' not in annotation['category_name']:
+
+                # if self.cfg.LOSS.SEG_USE is True:
+                #     if 'vehicle' not in annotation['category_name']:
+                #         continue704×256
+
+                if annotation['category_name'] not in general_to_detection:
                     continue
                 if self.cfg.DATASET.FILTER_INVISIBLE_VEHICLES and int(annotation['visibility_token']) == 1:
                     continue
@@ -277,37 +411,118 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             else:
                 instance_attribute = 0
 
-            poly_region, z = self._get_poly_region_in_image(annotation, translation, rotation)
+            # print("anno_toke vel: ", self.nusc.box_velocity(annotation_token)[:2])
+            # print("ins_anno['token']: ", self.nusc.box_velocity(annotation['token']))
+
+            box, poly_region, z = self._get_poly_region_in_image(annotation,
+                                                                 translation,
+                                                                 rotation,
+                                                                 rec['token'],
+                                                                 )
+            if self.cfg.SEMANTIC_SEG.NUSCENE_CLASS:
+                cv2.fillPoly(segmentation, [poly_region], NUSCENE_CLASS_NAMES.index(
+                    general_to_detection[box.name]) + 1.0)
+            else:
+                cv2.fillPoly(segmentation, [poly_region], 1.0)
+
             cv2.fillPoly(instance, [poly_region], instance_id)
-            cv2.fillPoly(segmentation, [poly_region], 1.0)
             cv2.fillPoly(z_position, [poly_region], z)
             cv2.fillPoly(attribute_label, [poly_region], instance_attribute)
 
-        return segmentation, instance, z_position, instance_map, attribute_label
+            # print("instance: ", instance.shape)
+            # print("segmentation: ", segmentation.shape)
+            # print("z_position: ", z_position.shape)
 
-    def _get_poly_region_in_image(self, instance_annotation, ego_translation, ego_rotation):
-        box = Box(
-            instance_annotation['translation'], instance_annotation['size'], Quaternion(instance_annotation['rotation'])
+            objects.append(
+                ObjectData(
+                    classname=general_to_detection[box.name],
+                    dimensions=box.wlh,
+                    position=box.center,
+                    angle=box.orientation.radians,
+                    score=1,
+                    rec=rec['data']['LIDAR_TOP'],
+                )
+            )
+            boxes.append(box)
+
+        return segmentation, instance, z_position, instance_map, attribute_label, objects, boxes
+
+    def _get_annos(self, boxes):
+        # gt_bboxes_3d: [N, 7] or [N, 9]
+        locs = np.array([b.center for b in boxes]).reshape(-1, 3)  # [x, y, z]
+        dims = np.array([b.wlh for b in boxes]).reshape(-1, 3)  # [y_size, x_size, z_size]
+
+        # Swap X, Y axis
+        locs[:, [1, 0]] = locs[:, [0, 1]]
+
+        rots = np.array([b.orientation.yaw_pitch_roll[0] for b in boxes]).reshape(-1, 1)
+
+        # gt_velocity
+        vels = np.array([b.velocity[:2] for b in boxes]).reshape(-1, 2)
+        # print("vels: ", vels)
+
+        # Revise Rotation angle for mirror line:  y = x
+        gt_bboxes_3d_list = [locs, dims, -rots + np.pi / 2]
+
+        # if self.cfg.DATASET.INCLUDE_VELOCITY:
+        #     gt_bboxes_3d_list.append(np.zeros((len(boxes), 2)))
+
+        gt_bboxes_3d = np.concatenate(gt_bboxes_3d_list, axis=1)
+
+        if self.cfg.DATASET.INCLUDE_VELOCITY:
+            gt_bboxes_3d = np.concatenate([gt_bboxes_3d, vels], axis=-1)
+            
+        # print("gt_bboxes_3d: ", gt_bboxes_3d)
+        gt_bboxes_3d = torch.from_numpy(gt_bboxes_3d).float()
+
+        gt_bboxes_3d = LiDARInstance3DBoxes(
+            gt_bboxes_3d,
+            box_dim=gt_bboxes_3d.shape[-1],
+            origin=(0.5, 0.5, 0.5)).convert_to(Box3DMode.LIDAR)
+
+        # gt_names_3d: [N,]
+        gt_names_3d = [b.name for b in boxes]
+        for i in range(len(gt_names_3d)):
+            if gt_names_3d[i] in general_to_detection:
+                gt_names_3d[i] = general_to_detection[gt_names_3d[i]]
+        # gt_names_3d = np.array(gt_names_3d)
+
+        # gt_labels_3d: [N,]
+        gt_labels_3d = []
+        for cat in gt_names_3d:
+            if cat in NUSCENE_CLASS_NAMES:
+                gt_labels_3d.append(NUSCENE_CLASS_NAMES.index(cat))
+            else:
+                gt_labels_3d.append(-1)
+        gt_labels_3d = np.array(gt_labels_3d)
+        gt_labels_3d = torch.from_numpy(gt_labels_3d)
+
+        # input_metas
+        input_metas = dict(
+            boxes_3d=gt_bboxes_3d,
+            box_mode_3d=Box3DMode.LIDAR,
+            box_type_3d=LiDARInstance3DBoxes,
         )
-        box.translate(ego_translation)
-        box.rotate(ego_rotation)
+        anns_results = dict(
+            gt_bboxes_3d=gt_bboxes_3d,
+            gt_labels_3d=gt_labels_3d,
+            gt_names_3d=gt_names_3d,
+            input_metas=input_metas,
+        )
 
-        pts = box.bottom_corners()[:2].T
-        pts = np.round((pts - self.bev_start_position[:2] + self.bev_resolution[:2] / 2.0) / self.bev_resolution[:2]).astype(np.int32)
-        pts[:, [1, 0]] = pts[:, [0, 1]]
-
-        z = box.bottom_corners()[2, 0]
-        return pts, z
+        return anns_results
 
     def get_label(self, rec, instance_map):
-        segmentation_np, instance_np, z_position_np, instance_map, attribute_label_np = \
+        segmentation_np, instance_np, z_position_np, instance_map, attribute_label_np, objects, boxes = \
             self.get_birds_eye_view_label(rec, instance_map)
+
         segmentation = torch.from_numpy(segmentation_np).long().unsqueeze(0).unsqueeze(0)
         instance = torch.from_numpy(instance_np).long().unsqueeze(0)
         z_position = torch.from_numpy(z_position_np).float().unsqueeze(0).unsqueeze(0)
         attribute_label = torch.from_numpy(attribute_label_np).long().unsqueeze(0).unsqueeze(0)
 
-        return segmentation, instance, z_position, instance_map, attribute_label
+        anns_results = self._get_annos(boxes)
+        return segmentation, instance, z_position, instance_map, attribute_label, anns_results
 
     def get_future_egomotion(self, rec, index):
         rec_t0 = rec
@@ -341,6 +556,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.indices)
+        # return len(self.ixes)
 
     def __getitem__(self, index):
         """
@@ -365,12 +581,15 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
                 'z_position': list_z_position,
                 'attribute': list_attribute_label,
 
+
         """
         data = {}
         keys = ['image', 'intrinsics', 'extrinsics',
                 'segmentation', 'instance', 'centerness', 'offset', 'flow', 'future_egomotion',
                 'sample_token',
-                'z_position', 'attribute'
+                'z_position', 'attribute',
+                'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas',
+                # 'index_t',
                 ]
         for key in keys:
             data[key] = []
@@ -378,16 +597,27 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         instance_map = {}
         # Loop over all the frames in the sequence.
         for index_t in self.indices[index]:
+            # print(index_t)
             rec = self.ixes[index_t]
+        # for i in range(1):
+        #     rec = self.ixes[index]
 
             images, intrinsics, extrinsics = self.get_input_data(rec)
-            segmentation, instance, z_position, instance_map, attribute_label = self.get_label(rec, instance_map)
+            segmentation, instance, z_position, instance_map, attribute_label, anns_results = \
+                self.get_label(rec, instance_map)
 
             future_egomotion = self.get_future_egomotion(rec, index_t)
+            # future_egomotion = self.get_future_egomotion(rec, index)
+
+            data['gt_bboxes_3d'].append(anns_results['gt_bboxes_3d'])
+            data['gt_labels_3d'].append(anns_results['gt_labels_3d'])
+            data['gt_names_3d'].append(anns_results['gt_names_3d'])
+            data['input_metas'].append(anns_results['input_metas'])
 
             data['image'].append(images)
             data['intrinsics'].append(intrinsics)
             data['extrinsics'].append(extrinsics)
+
             data['segmentation'].append(segmentation)
             data['instance'].append(instance)
             data['future_egomotion'].append(future_egomotion)
@@ -395,25 +625,27 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             data['z_position'].append(z_position)
             data['attribute'].append(attribute_label)
 
+            # data['index_t'].append(index_t)
+
         for key, value in data.items():
-            if key in ['sample_token', 'centerness', 'offset', 'flow']:
+            if key in ['sample_token', 'centerness', 'offset', 'flow', 'gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas', ]:
                 continue
             data[key] = torch.cat(value, dim=0)
 
-        # If lyft need to subsample, and update future_egomotions
-        if self.cfg.MODEL.SUBSAMPLE:
-            for key, value in data.items():
-                if key in ['future_egomotion', 'sample_token', 'centerness', 'offset', 'flow']:
-                    continue
-                data[key] = data[key][::2].clone()
-            data['sample_token'] = data['sample_token'][::2]
+        # If lyft need to subsample, and update future_egomotions
+        # if self.cfg.MODEL.SUBSAMPLE:
+        #     for key, value in data.items():
+        #         if key in ['future_egomotion', 'sample_token', 'centerness', 'offset', 'flow']:
+        #             continue
+        #         data[key] = data[key][::2].clone()
+        #     data['sample_token'] = data['sample_token'][::2]
 
-            # Update future egomotions
-            future_egomotions_matrix = pose_vec2mat(data['future_egomotion'])
-            future_egomotion_accum = torch.zeros_like(future_egomotions_matrix)
-            future_egomotion_accum[:-1] = future_egomotions_matrix[:-1] @ future_egomotions_matrix[1:]
-            future_egomotion_accum = mat2pose_vec(future_egomotion_accum)
-            data['future_egomotion'] = future_egomotion_accum[::2].clone()
+        #     # Update future egomotions
+        #     future_egomotions_matrix = pose_vec2mat(data['future_egomotion'])
+        #     future_egomotion_accum = torch.zeros_like(future_egomotions_matrix)
+        #     future_egomotion_accum[:-1] = future_egomotions_matrix[:-1] @ future_egomotions_matrix[1:]
+        #     future_egomotion_accum = mat2pose_vec(future_egomotion_accum)
+        #     data['future_egomotion'] = future_egomotion_accum[::2].clone()
 
         instance_centerness, instance_offset, instance_flow = convert_instance_mask_to_center_and_offset_label(
             data['instance'], data['future_egomotion'],
@@ -426,14 +658,43 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         return data
 
 
+class DeviceDict(dict):
+    def __init__(self, *args):
+        super(DeviceDict, self).__init__(*args)
+
+    def to(self, device):
+        dd = DeviceDict()
+        for k, v in self.items():
+            if torch.is_tensor(v):
+                dd[k] = v.to(device)
+            else:
+                dd[k] = v
+        return dd
+
+
+def collate_helper(elems, key):
+    if key in ['gt_bboxes_3d', 'gt_labels_3d', 'gt_names_3d', 'input_metas', 'sample_token', ]:
+        return elems
+    else:
+        return torch.utils.data.dataloader.default_collate(elems)
+
+
+def mm_collact_fn(batch):
+    # print("batch: ", len(batch))
+    # print("batch[0]: ", batch[0])
+    elem = batch[0]
+    return DeviceDict({key: collate_helper([d[key] for d in batch], key) for key in elem})
+
+
 def prepare_dataloaders(cfg, return_dataset=False):
+
     version = cfg.DATASET.VERSION
     train_on_training_data = True
 
     if cfg.DATASET.NAME == 'nuscenes':
         # 28130 train and 6019 val
         dataroot = os.path.join(cfg.DATASET.DATAROOT, version)
-        nusc = NuScenes(version='v1.0-{}'.format(cfg.DATASET.VERSION), dataroot=dataroot, verbose=False)
+        nusc = NuScenes(version='{}'.format(cfg.DATASET.VERSION), dataroot=dataroot, verbose=False)
     elif cfg.DATASET.NAME == 'lyft':
         # train contains 22680 samples
         # we split in 16506 6174
@@ -444,19 +705,33 @@ def prepare_dataloaders(cfg, return_dataset=False):
 
     traindata = FuturePredictionDataset(nusc, train_on_training_data, cfg)
     valdata = FuturePredictionDataset(nusc, False, cfg)
+    testdata = FuturePredictionDataset(nusc, False, cfg) if not cfg.TEST_TRAINSET else traindata
 
-    if cfg.DATASET.VERSION == 'mini':
-        traindata.indices = traindata.indices[:10]
-        valdata.indices = valdata.indices[:10]
+    # if cfg.DATASET.VERSION == 'v1.0-mini':
+    #     traindata.indices = traindata.indices[:10]
+    #     valdata.indices = valdata.indices[:10]
+
+    if cfg.DATASET.TRAINING_SAMPLES != -1:
+        traindata.ixes = traindata.ixes[:cfg.DATASET.TRAINING_SAMPLES]
+
+    if cfg.DATASET.VALIDATING_SAMPLES != -1:
+        valdata.ixes = valdata.ixes[:cfg.DATASET.VALIDATING_SAMPLES]
+
+    print("traindata.__len__(): ", traindata.__len__())
+    print("valdata.__len__(): ", valdata.__len__())
+    print("testdata.__len__(): ", testdata.__len__())
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(
-        traindata, batch_size=cfg.BATCHSIZE, shuffle=True, num_workers=nworkers, pin_memory=True, drop_last=True
+        traindata, batch_size=cfg.BATCHSIZE, shuffle=True, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=True
     )
     valloader = torch.utils.data.DataLoader(
-        valdata, batch_size=cfg.BATCHSIZE, shuffle=False, num_workers=nworkers, pin_memory=True, drop_last=False)
-
+        valdata, batch_size=cfg.VAL_BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
+    )
+    testloader = torch.utils.data.DataLoader(
+        testdata, batch_size=cfg.VAL_BATCHSIZE, shuffle=False, collate_fn=mm_collact_fn, num_workers=nworkers, pin_memory=True, drop_last=False
+    )
     if return_dataset:
-        return trainloader, valloader, traindata, valdata
+        return trainloader, valloader, testloader, traindata, valdata, testdata
     else:
-        return trainloader, valloader
+        return trainloader, valloader, testloader

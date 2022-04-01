@@ -22,6 +22,9 @@ class Decoder(nn.Module):
         self.up2_skip = UpsamplingAdd(128, 64, scale_factor=2)
         self.up1_skip = UpsamplingAdd(64, shared_out_channels, scale_factor=2)
 
+        #####
+        # segmentation heads
+        #####
         self.segmentation_head = nn.Sequential(
             nn.Conv2d(shared_out_channels, shared_out_channels, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(shared_out_channels),
@@ -69,7 +72,7 @@ class Decoder(nn.Module):
         # (H/8, W/8)
         x = self.layer3(x)
 
-        # First upsample to (H/4, W/4)
+        # First upsample to (H/4, W/4)
         x = self.up3_skip(x, skip_x['3'])
 
         # Second upsample to (H/2, W/2)
@@ -78,14 +81,16 @@ class Decoder(nn.Module):
         # Third upsample to (H, W)
         x = self.up1_skip(x, skip_x['1'])
 
+        # Segmentation head
         segmentation_output = self.segmentation_head(x)
         instance_center_output = self.instance_center_head(x)
         instance_offset_output = self.instance_offset_head(x)
         instance_future_output = self.instance_future_head(x) if self.predict_future_flow else None
+
         return {
             'segmentation': segmentation_output.view(b, s, *segmentation_output.shape[1:]),
             'instance_center': instance_center_output.view(b, s, *instance_center_output.shape[1:]),
             'instance_offset': instance_offset_output.view(b, s, *instance_offset_output.shape[1:]),
-            'instance_flow': instance_future_output.view(b, s, *instance_future_output.shape[1:])
-            if instance_future_output is not None else None,
+            'instance_flow': instance_future_output.view(b, s, *instance_future_output.shape[1:])if instance_future_output is not None else None,
+            'decoded_bev': x,
         }

@@ -1,0 +1,28 @@
+_BASE_: ["backbones/SECOND.yml", "necks/SECONDFPN.yml", "heads/CenterHead.yml"]
+
+MODEL:
+  ENCODER:
+    DOWNSAMPLE: 16
+    OUT_CHANNELS: 64
+  TEMPORAL_MODEL:
+    START_OUT_CHANNELS: 64
+    # 1M
+  MM:
+    BBOX_BACKBONE:
+      norm_cfg:
+        type: 'BN'
+        eps: 0.001
+        momentum: 0.01
+      conv_cfg:
+        type: 'Conv2d'
+        bias: False
+      in_channels: 64
+      # out_channels: [128, 256, 512]# 12M
+      out_channels: [64, 128, 256] 
+    BBOX_NECK:
+      # in_channels: [128, 256, 512]
+      in_channels: [64, 128, 256]
+      out_channels: [128, 128, 128]
+      # 1M
+    BBOX_HEAD:
+      in_channels: 384

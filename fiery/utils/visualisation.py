@@ -133,30 +133,30 @@ def make_color_wheel() -> np.ndarray:
     col += red_yellow
 
     # yellow_green
-    colorwheel[col : col + yellow_green, 0] = 255 - np.transpose(
+    colorwheel[col: col + yellow_green, 0] = 255 - np.transpose(
         np.floor(255 * np.arange(0, yellow_green) / yellow_green)
     )
-    colorwheel[col : col + yellow_green, 1] = 255
+    colorwheel[col: col + yellow_green, 1] = 255
     col += yellow_green
 
     # green_cyan
-    colorwheel[col : col + green_cyan, 1] = 255
-    colorwheel[col : col + green_cyan, 2] = np.transpose(np.floor(255 * np.arange(0, green_cyan) / green_cyan))
+    colorwheel[col: col + green_cyan, 1] = 255
+    colorwheel[col: col + green_cyan, 2] = np.transpose(np.floor(255 * np.arange(0, green_cyan) / green_cyan))
     col += green_cyan
 
     # cyan_blue
-    colorwheel[col : col + cyan_blue, 1] = 255 - np.transpose(np.floor(255 * np.arange(0, cyan_blue) / cyan_blue))
-    colorwheel[col : col + cyan_blue, 2] = 255
+    colorwheel[col: col + cyan_blue, 1] = 255 - np.transpose(np.floor(255 * np.arange(0, cyan_blue) / cyan_blue))
+    colorwheel[col: col + cyan_blue, 2] = 255
     col += cyan_blue
 
     # blue_magenta
-    colorwheel[col : col + blue_magenta, 2] = 255
-    colorwheel[col : col + blue_magenta, 0] = np.transpose(np.floor(255 * np.arange(0, blue_magenta) / blue_magenta))
+    colorwheel[col: col + blue_magenta, 2] = 255
+    colorwheel[col: col + blue_magenta, 0] = np.transpose(np.floor(255 * np.arange(0, blue_magenta) / blue_magenta))
     col += +blue_magenta
 
     # magenta_red
-    colorwheel[col : col + magenta_red, 2] = 255 - np.transpose(np.floor(255 * np.arange(0, magenta_red) / magenta_red))
-    colorwheel[col : col + magenta_red, 0] = 255
+    colorwheel[col: col + magenta_red, 2] = 255 - np.transpose(np.floor(255 * np.arange(0, magenta_red) / magenta_red))
+    colorwheel[col: col + magenta_red, 0] = 255
 
     return colorwheel
 
@@ -203,7 +203,17 @@ def plot_instance_map(instance_image, instance_map, instance_colours=None, bg_im
 
 
 def visualise_output(labels, output, cfg):
-    semantic_colours = np.array([[255, 255, 255], [0, 0, 0]], dtype=np.uint8)
+    # semantic_colours = np.array([[255, 255, 255], [0, 0, 0]], dtype=np.uint8)
+    semantic_colours = np.array([[255, 255, 255], [0, 0, 0],
+                                 [255, 179, 0],
+                                 [128, 62, 117],
+                                 [255, 104, 0],
+                                 [166, 189, 215],
+                                 [193, 0, 32],
+                                 [206, 162, 98],
+                                 [129, 112, 102],
+                                 [0, 125, 52],
+                                 [246, 118, 142]], dtype=np.uint8)
 
     consistent_instance_seg = predict_instance_segmentation_and_trajectories(
         output, compute_matched_centers=False
@@ -217,27 +227,27 @@ def visualise_output(labels, output, cfg):
         # Ground truth
         unique_ids = torch.unique(labels['instance'][b, t]).cpu().numpy()[1:]
         instance_map = dict(zip(unique_ids, unique_ids))
-        instance_plot = plot_instance_map(labels['instance'][b, t].cpu(), instance_map)[::-1, ::-1]
+        instance_plot = plot_instance_map(labels['instance'][b, t].cpu(), instance_map)
         instance_plot = make_contour(instance_plot)
 
         semantic_seg = labels['segmentation'].squeeze(2).cpu().numpy()
-        semantic_plot = semantic_colours[semantic_seg[b, t][::-1, ::-1]]
+        semantic_plot = semantic_colours[semantic_seg[b, t]]
         semantic_plot = make_contour(semantic_plot)
 
         if cfg.INSTANCE_FLOW.ENABLED:
             future_flow_plot = labels['flow'][b, t].cpu().numpy()
             future_flow_plot[:, semantic_seg[b, t] != 1] = 0
-            future_flow_plot = flow_to_image(future_flow_plot)[::-1, ::-1]
+            future_flow_plot = flow_to_image(future_flow_plot)
             future_flow_plot = make_contour(future_flow_plot)
         else:
             future_flow_plot = np.zeros_like(semantic_plot)
 
-        center_plot = heatmap_image(labels['centerness'][b, t, 0].cpu().numpy())[::-1, ::-1]
+        center_plot = heatmap_image(labels['centerness'][b, t, 0].cpu().numpy())
         center_plot = make_contour(center_plot)
 
         offset_plot = labels['offset'][b, t].cpu().numpy()
         offset_plot[:, semantic_seg[b, t] != 1] = 0
-        offset_plot = flow_to_image(offset_plot)[::-1, ::-1]
+        offset_plot = flow_to_image(offset_plot)
         offset_plot = make_contour(offset_plot)
 
         out_t.append(np.concatenate([instance_plot, future_flow_plot,
@@ -246,27 +256,27 @@ def visualise_output(labels, output, cfg):
         # Predictions
         unique_ids = torch.unique(consistent_instance_seg[b, t]).cpu().numpy()[1:]
         instance_map = dict(zip(unique_ids, unique_ids))
-        instance_plot = plot_instance_map(consistent_instance_seg[b, t].cpu(), instance_map)[::-1, ::-1]
+        instance_plot = plot_instance_map(consistent_instance_seg[b, t].cpu(), instance_map)
         instance_plot = make_contour(instance_plot)
 
         semantic_seg = output['segmentation'].argmax(dim=2).detach().cpu().numpy()
-        semantic_plot = semantic_colours[semantic_seg[b, t][::-1, ::-1]]
+        semantic_plot = semantic_colours[semantic_seg[b, t]]
         semantic_plot = make_contour(semantic_plot)
 
         if cfg.INSTANCE_FLOW.ENABLED:
             future_flow_plot = output['instance_flow'][b, t].detach().cpu().numpy()
             future_flow_plot[:, semantic_seg[b, t] != 1] = 0
-            future_flow_plot = flow_to_image(future_flow_plot)[::-1, ::-1]
+            future_flow_plot = flow_to_image(future_flow_plot)
             future_flow_plot = make_contour(future_flow_plot)
         else:
             future_flow_plot = np.zeros_like(semantic_plot)
 
-        center_plot = heatmap_image(output['instance_center'][b, t, 0].detach().cpu().numpy())[::-1, ::-1]
+        center_plot = heatmap_image(output['instance_center'][b, t, 0].detach().cpu().numpy())
         center_plot = make_contour(center_plot)
 
         offset_plot = output['instance_offset'][b, t].detach().cpu().numpy()
         offset_plot[:, semantic_seg[b, t] != 1] = 0
-        offset_plot = flow_to_image(offset_plot)[::-1, ::-1]
+        offset_plot = flow_to_image(offset_plot)
         offset_plot = make_contour(offset_plot)
 
         out_t.append(np.concatenate([instance_plot, future_flow_plot,

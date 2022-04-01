@@ -1,0 +1,78 @@
+DATASET:
+  INCLUDE_VELOCITY: True
+
+LIFT:
+  X_BOUND: [-50.0, 50.0, 0.25] #  Forwards
+  Y_BOUND: [-50.0, 50.0, 0.25] # Sides
+  Z_BOUND: [-10.0, 10.0, 20.0] # Height
+
+MODEL:
+  MM:
+    BBOX_HEAD:
+      type: Anchor3DHeadWrapper
+      anchor_generator:
+        type: AlignedAnchor3DRangeGenerator
+        ranges: [[-50, -50, -1.8, 50, 50, -1.8]]
+        reshape_out: True
+        rotations: [0, 1.57]
+        scales: [1, 2, 4]
+        # sizes: [
+        #     [0.866, 2.5981, 1.0], # 1.5/sqrt(3)
+        #     [0.5774, 1.7321, 1.0], # 1/sqrt(3)
+        #     [1.0, 1.0, 1.0],
+        #     [0.4, 0.4, 1],
+        #   ]
+        sizes: [
+            [2.5981, 0.8660, 1.],  # 1.5 / sqrt(3)
+            [1.7321, 0.5774, 1.],  # 1 / sqrt(3)
+            [1., 1., 1.],
+            [0.4, 0.4, 1],
+        ]
+        custom_values: [0, 0]
+
+      assigner_per_size: False
+      bbox_coder:
+        type: DeltaXYZWLHRBBoxCoder
+        code_size: 9
+      diff_rad_by_sin: True
+      dir_limit_offset: 0
+      dir_offset: -0.7854 # pi/4
+      feat_channels: 256
+      in_channels: 256
+      loss_bbox:
+        type: SmoothL1Loss
+        beta: 0.1111111111111111
+        loss_weight: 1.0
+      loss_cls:
+        type: FocalLoss
+        alpha: 0.25
+        gamma: 2.0
+        loss_weight: 1.0
+        use_sigmoid: True
+      loss_dir:
+        type: CrossEntropyLoss
+        loss_weight: 0.2
+        use_sigmoid: False
+      num_classes: 10
+      test_cfg:
+        max_num: 450
+        min_bbox_size: 0
+        nms_across_levels: False
+        nms_pre: 1000
+        nms_thr: 0.2
+        score_thr: 0.05
+        use_rotate_nms: True
+      train_cfg:
+        allowed_border: 0
+        assigner:
+          type: MaxIoUAssigner
+          ignore_iof_thr: -1
+          iou_calculator:
+            type: BboxOverlapsNearest3D
+          min_pos_iou: 0.3
+          neg_iou_thr: 0.3
+          pos_iou_thr: 0.6
+        debug: False
+        code_weight: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.2, 0.2]
+        pos_weight: -1
+      use_direction_classifier: True
