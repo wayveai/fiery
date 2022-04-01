@@ -1,5 +1,5 @@
-_BASE_: ["../temporal_single_timeframe.yml", "../models/centerpoint.yml"]
-# _BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
+# _BASE_: ["../temporal_single_timeframe.yml", "../models/centerpoint.yml"]
+_BASE_: ["../single_timeframe.yml", "../models/centerpoint.yml"]
 # _BASE_: ["../single_timeframe.yml", "../models/pointpillar.yml"]
 
 TAG: "lss"
@@ -43,6 +43,9 @@ IMAGE:
   # FINAL_DIM: [256, 704]
   # RESIZE_SCALE: 0.44
   # TOP_CROP: 140
+  FINAL_DIM: [512, 1408]
+  RESIZE_SCALE: 0.88
+  TOP_CROP: 280
   IMAGE_AUG: False
 
 LOSS:
