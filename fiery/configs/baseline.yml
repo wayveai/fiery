@@ -11,6 +11,10 @@ N_FUTURE_FRAMES: 4
 PROBABILISTIC:
   ENABLED: True
 
+PRETRAINED:
+  LOAD_WEIGHTS: True
+  PATH: '/home/wayve/anthony/fiery/pretrained_weights/static_lift_splat_setting.ckpt'
+
 MODEL:
   BN_MOMENTUM: 0.05
   TEMPORAL_MODEL:
