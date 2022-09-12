@@ -17,6 +17,8 @@ class DistributionModule(nn.Module):
         self.min_log_sigma = min_log_sigma
         self.max_log_sigma = max_log_sigma
 
+        self.min_std = 0.1
+
         self.encoder = DistributionEncoder(
             in_channels,
             self.compress_dim,
@@ -26,6 +28,9 @@ class DistributionModule(nn.Module):
         )
 
     def forward(self, s_t):
+        def sigmoid2(tensor, min_value):
+            return 2 * torch.sigmoid(tensor / 2) + min_value
+
         b, s = s_t.shape[:2]
         assert s == 1
         encoding = self.encoder(s_t[:, 0])
@@ -34,9 +39,8 @@ class DistributionModule(nn.Module):
         mu = mu_log_sigma[:, :, :self.latent_dim]
         log_sigma = mu_log_sigma[:, :, self.latent_dim:]
 
-        # clip the log_sigma value for numerical stability
-        log_sigma = torch.clamp(log_sigma, self.min_log_sigma, self.max_log_sigma)
-        return mu, log_sigma
+        sigma = sigmoid2(log_sigma, self.min_std)
+        return mu, sigma
 
 
 class DistributionEncoder(nn.Module):

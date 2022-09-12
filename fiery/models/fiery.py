@@ -321,10 +321,10 @@ class Fiery(nn.Module):
                 noise = torch.zeros_like(present_mu)
         if self.training:
             mu = future_mu
-            sigma = torch.exp(future_log_sigma)
+            sigma = future_log_sigma
         else:
             mu = present_mu
-            sigma = torch.exp(present_log_sigma)
+            sigma = present_log_sigma
         sample = mu + sigma * noise
 
         # Spatially broadcast sample to the dimensions of present_features
