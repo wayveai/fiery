@@ -49,7 +49,7 @@ Or locally:
 them to an `output_vis` folder.
 
 ### Evaluation
-- Download the [NuScenes dataset](https://www.nuscenes.org/download) (Full dataset (v1.0)).
+- Download the [NuScenes dataset](https://www.nuscenes.org/download). For detailed instructions, see [DATASET.md](DATASET.md).
 - Download [pre-trained weights](https://github.com/wayveai/fiery/releases/download/v1.0/fiery.ckpt).
 - Run `python evaluate.py --checkpoint ${CHECKPOINT_PATH} --dataroot ${NUSCENES_DATAROOT}`.
 
