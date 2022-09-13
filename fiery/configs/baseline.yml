@@ -1,6 +1,6 @@
-TAG: 'baseline'
+TAG: 'baseline_prob_weight_1.0'
 
-GPUS: [0, 1, 2, 3]
+GPUS: 4
 
 BATCHSIZE: 3
 PRECISION: 16
@@ -10,6 +10,7 @@ N_FUTURE_FRAMES: 4
 
 PROBABILISTIC:
   ENABLED: True
+  WEIGHT: 1.0
 
 PRETRAINED:
   LOAD_WEIGHTS: True
@@ -27,4 +28,4 @@ INSTANCE_FLOW:
 OPTIMIZER:
   LR: 3e-4
 
-N_WORKERS: 20
+N_WORKERS: 10

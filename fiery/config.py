@@ -33,7 +33,7 @@ _C = CN()
 _C.LOG_DIR = 'tensorboard_logs'
 _C.TAG = 'default'
 
-_C.GPUS = [0]  # which gpus to use
+_C.GPUS = 1  # number of gpus
 _C.PRECISION = 32  # 16bit or 32bit
 _C.BATCHSIZE = 3
 _C.EPOCHS = 20
@@ -101,7 +101,7 @@ _C.MODEL.BN_MOMENTUM = 0.1
 _C.MODEL.SUBSAMPLE = False  # Subsample frames for Lyft
 
 _C.SEMANTIC_SEG = CN()
-_C.SEMANTIC_SEG.WEIGHTS = [1.0, 2.0]  # per class cross entropy weights (bg, dynamic, drivable, lane)
+_C.SEMANTIC_SEG.WEIGHTS = [1.0, 2.0]  # per class cross entropy weights (bg, dynamic)
 _C.SEMANTIC_SEG.USE_TOP_K = True  # backprop only top-k hardest pixels
 _C.SEMANTIC_SEG.TOP_K_RATIO = 0.25
 
