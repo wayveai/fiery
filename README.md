@@ -70,9 +70,11 @@ All the configs are in the folder `fiery/configs`
 
 ## 🏊 Training
 To train the model from scratch on NuScenes:
+- Download the NuScenes dataset. For detailed instructions, see DATASET.md.
 - Run `python train.py --config fiery/configs/baseline.yml DATASET.DATAROOT ${NUSCENES_DATAROOT}`.
 
-To train on single GPU add the flag `GPUS [0]`, and to change the batch size use the flag `BATCHSIZE ${DESIRED_BATCHSIZE}`.
+This will train the model on 4 GPUs, each with a batch of size 3. To train on single GPU add the flag `GPUS 1`, and to change the batch 
+size use the flag `BATCHSIZE ${DESIRED_BATCHSIZE}`.
 
 ## 🙌 Credits
 Big thanks to Giulio D'Ippolito ([@gdippolito](https://github.com/gdippolito)) for the technical help on the gpu 
