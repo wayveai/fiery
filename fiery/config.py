@@ -33,7 +33,7 @@ _C = CN()
 _C.LOG_DIR = 'tensorboard_logs'
 _C.TAG = 'default'
 
-_C.GPUS = 1  # number of gpus
+_C.GPUS = [0]  # gpus to use
 _C.PRECISION = 32  # 16bit or 32bit
 _C.BATCHSIZE = 3
 _C.EPOCHS = 20

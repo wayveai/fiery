@@ -1,6 +1,6 @@
 TAG: 'baseline_prob_weight_1.0'
 
-GPUS: 4
+GPUS: [0, 1, 2, 3]
 
 BATCHSIZE: 3
 PRECISION: 16
