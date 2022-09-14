@@ -69,7 +69,6 @@ class Fiery(nn.Module):
 
         self.future_pred_in_channels = self.temporal_model.out_channels
         if self.n_future > 0:
-            self.bev_norm = nn.BatchNorm2d(self.temporal_model.out_channels)
             # probabilistic sampling
             if self.cfg.PROBABILISTIC.ENABLED:
                 # Distribution networks
@@ -171,7 +170,12 @@ class Fiery(nn.Module):
             # Prepare future prediction input
             b, _, _, h, w = present_state.shape
             hidden_state = present_state[:, 0]
-            hidden_state = self.bev_norm(hidden_state)
+            def normalise_feature(h):
+                hmax = torch.amax(h, dim=(-1, -2, -3), keepdims=True)
+                hmin = torch.amin(h, dim=(-1, -2, -3), keepdims=True)
+                h_normalised = (h - hmin) / (hmax - hmin)
+                return h_normalised
+            hidden_state = normalise_feature(hidden_state)
 
             if self.cfg.PROBABILISTIC.ENABLED:
                 future_prediction_input = sample.expand(-1, self.n_future, -1, -1, -1)
