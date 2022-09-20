@@ -206,13 +206,13 @@ class TrainingModule(pl.LightningModule):
         # Log present and future distributions standard deviations
         self.logger.experiment.add_scalar(
             'present_std',
-            output['present_log_sigma'].detach().mean().item(),
+            output['present_sigma'].detach().mean().item(),
             global_step=self.training_step_count
         )
 
         self.logger.experiment.add_scalar(
             'future_std',
-            output['future_log_sigma'].detach().mean().item(),
+            output['future_sigma'].detach().mean().item(),
             global_step=self.training_step_count
         )
 

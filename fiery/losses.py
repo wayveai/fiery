@@ -80,9 +80,9 @@ class SegmentationLoss(nn.Module):
 class ProbabilisticLoss(nn.Module):
     def forward(self, output):
         present_mu = output['present_mu']
-        present_sigma = output['present_log_sigma']
+        present_sigma = output['present_sigma']
         future_mu = output['future_mu']
-        future_sigma = output['future_log_sigma']
+        future_sigma = output['future_sigma']
 
         future_var = future_sigma ** 2
         present_var = present_sigma ** 2
