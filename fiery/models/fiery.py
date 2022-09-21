@@ -158,11 +158,10 @@ class Fiery(nn.Module):
         states = self.temporal_model(x)
 
         if self.n_future > 0:
-            # Split into present and future features (for the probabilistic model)
             present_state = states[:, :1].contiguous()
             def normalise_feature(h):
-                hmax = torch.amax(h, dim=(-1, -2, -3), keepdims=True)
-                hmin = torch.amin(h, dim=(-1, -2, -3), keepdims=True)
+                hmax = torch.amax(h, dim=(-1, -2, -3), keepdim=True)
+                hmin = torch.amin(h, dim=(-1, -2, -3), keepdim=True)
                 h_normalised = (h - hmin) / (hmax - hmin)
                 return h_normalised
             present_state = normalise_feature(present_state)
