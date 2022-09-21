@@ -159,12 +159,6 @@ class Fiery(nn.Module):
 
         if self.n_future > 0:
             present_state = states[:, :1].contiguous()
-            def normalise_feature(h):
-                hmax = torch.amax(h, dim=(-1, -2, -3), keepdim=True)
-                hmin = torch.amin(h, dim=(-1, -2, -3), keepdim=True)
-                h_normalised = (h - hmin) / (hmax - hmin)
-                return h_normalised
-            present_state = normalise_feature(present_state)
             if self.cfg.PROBABILISTIC.ENABLED:
                 # Do probabilistic computation
                 sample, output_distribution = self.distribution_forward(
@@ -310,14 +304,14 @@ class Fiery(nn.Module):
         b, s, _, h, w = present_features.size()
         assert s == 1
 
-        present_mu, present_sigma = self.present_distribution(present_features)
+        present_mu, present_log_sigma = self.present_distribution(present_features)
 
-        future_mu, future_sigma = None, None
+        future_mu, future_log_sigma = None, None
         if future_distribution_inputs is not None:
             # Concatenate future labels to z_t
             future_features = future_distribution_inputs[:, 1:].contiguous().view(b, 1, -1, h, w)
             future_features = torch.cat([present_features, future_features], dim=2)
-            future_mu, future_sigma = self.future_distribution(future_features)
+            future_mu, future_log_sigma = self.future_distribution(future_features)
 
         if noise is None:
             if self.training:
@@ -326,10 +320,10 @@ class Fiery(nn.Module):
                 noise = torch.zeros_like(present_mu)
         if self.training:
             mu = future_mu
-            sigma = future_sigma
+            sigma = torch.exp(future_log_sigma)
         else:
             mu = present_mu
-            sigma = present_sigma
+            sigma = torch.exp(present_log_sigma)
         sample = mu + sigma * noise
 
         # Spatially broadcast sample to the dimensions of present_features
@@ -337,9 +331,9 @@ class Fiery(nn.Module):
 
         output_distribution = {
             'present_mu': present_mu,
-            'present_sigma': present_sigma,
+            'present_log_sigma': present_log_sigma,
             'future_mu': future_mu,
-            'future_sigma': future_sigma,
+            'future_log_sigma': future_log_sigma,
         }
 
         return sample, output_distribution

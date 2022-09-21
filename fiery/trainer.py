@@ -203,19 +203,6 @@ class TrainingModule(pl.LightningModule):
         for key, value in loss.items():
             self.logger.experiment.add_scalar(key, value, global_step=self.training_step_count)
 
-        # Log present and future distributions standard deviations
-        self.logger.experiment.add_scalar(
-            'present_std',
-            output['present_sigma'].detach().mean().item(),
-            global_step=self.training_step_count
-        )
-
-        self.logger.experiment.add_scalar(
-            'future_std',
-            output['future_sigma'].detach().mean().item(),
-            global_step=self.training_step_count
-        )
-
         if self.training_step_count % self.cfg.VIS_INTERVAL == 0:
             self.visualise(labels, output, batch_idx, prefix='train')
         return sum(loss.values())
