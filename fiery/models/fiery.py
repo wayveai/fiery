@@ -158,7 +158,6 @@ class Fiery(nn.Module):
         states = self.temporal_model(x)
 
         if self.n_future > 0:
-            # Split into present and future features (for the probabilistic model)
             present_state = states[:, :1].contiguous()
             if self.cfg.PROBABILISTIC.ENABLED:
                 # Do probabilistic computation
