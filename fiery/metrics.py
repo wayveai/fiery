@@ -1,9 +1,26 @@
 from typing import Optional
 
 import torch
-from pytorch_lightning.metrics.metric import Metric
-from pytorch_lightning.metrics.functional.classification import stat_scores_multiple_classes
-from pytorch_lightning.metrics.functional.reduction import reduce
+from torchmetrics import Metric
+
+
+def _stat_scores(prediction: torch.Tensor, target: torch.Tensor, n_classes: int):
+    """Compute true positives, false positives, false negatives, and support per class."""
+    tps = torch.zeros(n_classes, device=prediction.device)
+    fps = torch.zeros(n_classes, device=prediction.device)
+    fns = torch.zeros(n_classes, device=prediction.device)
+    sups = torch.zeros(n_classes, device=prediction.device)
+
+    for cls in range(n_classes):
+        pred_cls = prediction == cls
+        target_cls = target == cls
+
+        tps[cls] = (pred_cls & target_cls).sum().float()
+        fps[cls] = (pred_cls & ~target_cls).sum().float()
+        fns[cls] = (~pred_cls & target_cls).sum().float()
+        sups[cls] = target_cls.sum().float()
+
+    return tps, fps, fns, sups
 
 
 class IntersectionOverUnion(Metric):
@@ -14,9 +31,8 @@ class IntersectionOverUnion(Metric):
         ignore_index: Optional[int] = None,
         absent_score: float = 0.0,
         reduction: str = 'none',
-        compute_on_step: bool = False,
     ):
-        super().__init__(compute_on_step=compute_on_step)
+        super().__init__()
 
         self.n_classes = n_classes
         self.ignore_index = ignore_index
@@ -29,7 +45,7 @@ class IntersectionOverUnion(Metric):
         self.add_state('support', default=torch.zeros(n_classes), dist_reduce_fx='sum')
 
     def update(self, prediction: torch.Tensor, target: torch.Tensor):
-        tps, fps, _, fns, sups = stat_scores_multiple_classes(prediction, target, self.n_classes)
+        tps, fps, fns, sups = _stat_scores(prediction, target, self.n_classes)
 
         self.true_positive += tps
         self.false_positive += fps
@@ -62,7 +78,7 @@ class IntersectionOverUnion(Metric):
         if (self.ignore_index is not None) and (0 <= self.ignore_index < self.n_classes):
             scores = torch.cat([scores[:self.ignore_index], scores[self.ignore_index+1:]])
 
-        return reduce(scores, reduction=self.reduction)
+        return scores
 
 
 class PanopticMetric(Metric):
@@ -71,9 +87,8 @@ class PanopticMetric(Metric):
         n_classes: int,
         temporally_consistent: bool = True,
         vehicles_id: int = 1,
-        compute_on_step: bool = False,
     ):
-        super().__init__(compute_on_step=compute_on_step)
+        super().__init__()
 
         self.n_classes = n_classes
         self.temporally_consistent = temporally_consistent
@@ -130,7 +145,7 @@ class PanopticMetric(Metric):
         return {'pq': pq,
                 'sq': sq,
                 'rq': rq,
-                # If 0, it means there wasn't any detection.
+                # If 0, it means there wasn't any detection.
                 'denominator': (self.true_positive + self.false_positive / 2 + self.false_negative / 2),
                 }
 
@@ -157,7 +172,7 @@ class PanopticMetric(Metric):
         n_all_things = n_instances + n_classes  # Classes + instances.
         n_things_and_void = n_all_things + 1
 
-        # Now 1 is background; 0 is void (not used). 2 is vehicle semantic class but since it overlaps with
+        # Now 1 is background; 0 is void (not used). 2 is vehicle semantic class but since it overlaps with
         # instances, it is not present.
         # and the rest are instance ids starting from 3
         prediction, pred_to_cls = self.combine_mask(pred_segmentation, pred_instance, n_classes, n_all_things)

@@ -200,7 +200,7 @@ class Fiery(nn.Module):
 
         # Camera to ego reference frame
         points = torch.cat((points[:, :, :, :, :, :2] * points[:, :, :, :, :, 2:3], points[:, :, :, :, :, 2:3]), 5)
-        combined_transformation = rotation.matmul(torch.inverse(intrinsics))
+        combined_transformation = rotation.matmul(torch.linalg.inv(intrinsics))
         points = combined_transformation.view(B, N, 1, 1, 1, 3, 3).matmul(points).squeeze(-1)
         points += translation.view(B, N, 1, 1, 1, 3)
 

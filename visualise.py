@@ -60,7 +60,7 @@ def plot_prediction(image, output, cfg):
         ax = plt.subplot(gs[imgi // 3, imgi % 3])
         showimg = denormalise_img(img.cpu())
         if imgi > 2:
-            showimg = showimg.transpose(Image.FLIP_LEFT_RIGHT)
+            showimg = showimg.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
 
         plt.annotate(cameras[imgi].replace('_', ' ').replace('CAM ', ''), (0.01, 0.87), c='white',
                      xycoords='axes fraction', fontsize=14)

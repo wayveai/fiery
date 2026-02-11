@@ -7,7 +7,7 @@ from fiery.layers.convolutions import UpsamplingAdd
 class Decoder(nn.Module):
     def __init__(self, in_channels, n_classes, predict_future_flow):
         super().__init__()
-        backbone = resnet18(pretrained=False, zero_init_residual=True)
+        backbone = resnet18(weights=None, zero_init_residual=True)
         self.first_conv = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = backbone.bn1
         self.relu = backbone.relu

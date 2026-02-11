@@ -16,10 +16,10 @@ def convert_instance_mask_to_center_and_offset_label(instance_img, future_egomot
     offset_label = ignore_index * torch.ones(seq_len, 2, h, w)
     future_displacement_label = ignore_index * torch.ones(seq_len, 2, h, w)
     # x is vertical displacement, y is horizontal displacement
-    x, y = torch.meshgrid(torch.arange(h, dtype=torch.float), torch.arange(w, dtype=torch.float))
+    x, y = torch.meshgrid(torch.arange(h, dtype=torch.float), torch.arange(w, dtype=torch.float), indexing='ij')
 
     if subtract_egomotion:
-        future_egomotion_inv = mat2pose_vec(pose_vec2mat(future_egomotion).inverse())
+        future_egomotion_inv = mat2pose_vec(torch.linalg.inv(pose_vec2mat(future_egomotion)))
 
     # Compute warped instance segmentation
     warped_instance_seg = {}
@@ -199,7 +199,8 @@ def make_instance_id_temporally_consistent(pred_inst, future_flow, matching_thre
     for t in range(seq_len - 1):
         # Compute predicted future instance means
         grid = torch.stack(torch.meshgrid(
-            torch.arange(h, dtype=torch.float, device=device), torch.arange(w, dtype=torch.float, device=device)
+            torch.arange(h, dtype=torch.float, device=device), torch.arange(w, dtype=torch.float, device=device),
+            indexing='ij',
         ))
 
         # Add future flow
@@ -221,7 +222,8 @@ def make_instance_id_temporally_consistent(pred_inst, future_flow, matching_thre
         # Compute actual future instance means
         centers = []
         grid = torch.stack(torch.meshgrid(
-            torch.arange(h, dtype=torch.float, device=device), torch.arange(w, dtype=torch.float, device=device)
+            torch.arange(h, dtype=torch.float, device=device), torch.arange(w, dtype=torch.float, device=device),
+            indexing='ij',
         ))
         n_instances = int(pred_inst[0, t + 1].max().item())
 
@@ -312,7 +314,8 @@ def predict_instance_segmentation_and_trajectories(
         _, seq_len, h, w = consistent_instance_seg.shape
         grid = torch.stack(torch.meshgrid(
             torch.arange(h, dtype=torch.float, device=preds.device),
-            torch.arange(w, dtype=torch.float, device=preds.device)
+            torch.arange(w, dtype=torch.float, device=preds.device),
+            indexing='ij',
         ))
 
         for instance_id in torch.unique(consistent_instance_seg[0, 0])[1:].cpu().numpy():

@@ -14,11 +14,11 @@ from fiery.utils.visualisation import visualise_output
 class TrainingModule(pl.LightningModule):
     def __init__(self, hparams):
         super().__init__()
-        
+
         # see config.py for details
-        self.hparams = hparams
-        # pytorch lightning does not support saving YACS CfgNone
-        cfg = get_cfg(cfg_dict=self.hparams)
+        self.save_hyperparameters(hparams)
+        # pytorch lightning does not support saving YACS CfgNode
+        cfg = get_cfg(cfg_dict=dict(self.hparams))
         self.cfg = cfg
         self.n_classes = len(self.cfg.SEMANTIC_SEG.WEIGHTS)
 
@@ -215,7 +215,7 @@ class TrainingModule(pl.LightningModule):
         if batch_idx == 0:
             self.visualise(labels, output, batch_idx, prefix='val')
 
-    def shared_epoch_end(self, step_outputs, is_train):
+    def shared_epoch_end(self, is_train):
         # log per class iou metrics
         class_names = ['background', 'dynamic']
         if not is_train:
@@ -245,11 +245,11 @@ class TrainingModule(pl.LightningModule):
             self.logger.experiment.add_scalar('flow_weight', 1 / (2 * torch.exp(self.model.flow_weight)),
                                               global_step=self.training_step_count)
 
-    def training_epoch_end(self, step_outputs):
-        self.shared_epoch_end(step_outputs, True)
+    def on_train_epoch_end(self):
+        self.shared_epoch_end(True)
 
-    def validation_epoch_end(self, step_outputs):
-        self.shared_epoch_end(step_outputs, False)
+    def on_validation_epoch_end(self):
+        self.shared_epoch_end(False)
 
     def configure_optimizers(self):
         params = self.model.parameters()

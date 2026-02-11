@@ -3,7 +3,7 @@ import time
 import socket
 import torch
 import pytorch_lightning as pl
-from pytorch_lightning.plugins import DDPPlugin
+from pytorch_lightning.strategies import DDPStrategy
 
 from fiery.config import get_parser, get_cfg
 from fiery.data import prepare_dataloaders
@@ -20,7 +20,7 @@ def main():
     if cfg.PRETRAINED.LOAD_WEIGHTS:
         # Load single-image instance segmentation model.
         pretrained_model_weights = torch.load(
-            os.path.join(cfg.DATASET.DATAROOT, cfg.PRETRAINED.PATH), map_location='cpu'
+            os.path.join(cfg.DATASET.DATAROOT, cfg.PRETRAINED.PATH), map_location='cpu', weights_only=False
         )['state_dict']
 
         model.load_state_dict(pretrained_model_weights, strict=False)
@@ -31,16 +31,15 @@ def main():
     )
     tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir)
     trainer = pl.Trainer(
-        gpus=cfg.GPUS,
-        accelerator='ddp',
+        devices=cfg.GPUS,
+        accelerator='gpu',
+        strategy=DDPStrategy(find_unused_parameters=True),
         precision=cfg.PRECISION,
         sync_batchnorm=True,
         gradient_clip_val=cfg.GRAD_NORM_CLIP,
         max_epochs=cfg.EPOCHS,
-        weights_summary='full',
         logger=tb_logger,
         log_every_n_steps=cfg.LOGGING_INTERVAL,
-        plugins=DDPPlugin(find_unused_parameters=True),
         profiler='simple',
     )
     trainer.fit(model, trainloader, valloader)
