@@ -8,7 +8,7 @@ described in:
 [Nikhil Mohan](https://uk.linkedin.com/in/nikhilmohan33), 
 [Sofía Dudas](https://uk.linkedin.com/in/sof%C3%ADa-josefina-lago-dudas-2b0737132), 
 [Jeffrey Hawke](https://uk.linkedin.com/in/jeffrey-hawke), 
-[‪Vijay Badrinarayanan](https://sites.google.com/site/vijaybacademichomepage/home), 
+[Vijay Badrinarayanan](https://sites.google.com/site/vijaybacademichomepage/home), 
 [Roberto Cipolla](https://mi.eng.cam.ac.uk/~cipolla/index.htm) and [Alex Kendall](https://alexgkendall.com/)  
 >
 > [ICCV 2021 (Oral)](https://arxiv.org/abs/2104.10490)<br/>

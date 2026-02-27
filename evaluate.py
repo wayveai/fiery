@@ -16,7 +16,7 @@ EVALUATION_RANGES = {'30x30': (70, 130),
 
 
 def eval(checkpoint_path, dataroot, version):
-    trainer = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True)
+    trainer = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True, weights_only=False)
     print(f'Loaded weights from \n {checkpoint_path}')
     trainer.eval()
 
