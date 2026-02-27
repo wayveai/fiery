@@ -8,7 +8,7 @@ dependencies:
 - python=3.12
 - pytorch>=2.5.0
 - torchvision>=0.20.0
-- pytorch-cuda=12.8
+- pytorch-cuda=12.6
 - numpy>=1.26.0,<2.0.0
 - matplotlib>=3.5.0
 - scipy>=1.12.0
