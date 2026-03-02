@@ -1,0 +1,9 @@
+defaults:
+  - experiment: baseline
+  - model: fiery
+  - paths: default
+  - hydra: default
+  - _self_
+
+checkpoint_path: ${paths.root_dir}/fiery.ckpt
+output_dir: ${paths.root_dir}/output_vis

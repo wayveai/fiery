@@ -4,6 +4,7 @@ from PIL import Image
 import numpy as np
 import cv2
 import torch
+import pytorch_lightning as pl
 import torchvision
 
 from pyquaternion import Quaternion
@@ -460,3 +461,25 @@ def prepare_dataloaders(cfg, return_dataset=False):
         return trainloader, valloader, traindata, valdata
     else:
         return trainloader, valloader
+
+
+class FieryDataModule(pl.LightningDataModule):
+    def __init__(self, cfg):
+        super().__init__()
+        self.cfg = cfg
+        self._train_loader = None
+        self._val_loader = None
+
+    def setup(self, stage=None):
+        if self._train_loader is None or self._val_loader is None:
+            self._train_loader, self._val_loader = prepare_dataloaders(self.cfg)
+
+    def train_dataloader(self):
+        if self._train_loader is None:
+            self.setup()
+        return self._train_loader
+
+    def val_dataloader(self):
+        if self._val_loader is None:
+            self.setup()
+        return self._val_loader

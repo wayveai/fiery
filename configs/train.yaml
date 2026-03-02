@@ -1,0 +1,13 @@
+defaults:
+  - data: nuscenes
+  - experiment: baseline
+  - model: fiery
+  - trainer: default
+  - logger: tensorboard
+  - callbacks: default
+  - paths: default
+  - hydra: default
+  - _self_
+
+seed: 42
+deterministic: false

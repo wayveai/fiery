@@ -1,0 +1,9 @@
+model_checkpoint:
+  monitor: val_segmentation
+  mode: min
+  save_top_k: 1
+  save_last: true
+  filename: "epoch_{epoch}-step_{step}"
+
+learning_rate_monitor:
+  logging_interval: epoch

@@ -1,0 +1,12 @@
+defaults:
+  - /experiment: single_timeframe
+fiery:
+  TAG: 'lyft_single_frame'
+
+  DATASET:
+    NAME: 'lyft'
+
+  IMAGE:
+    ORIGINAL_HEIGHT: 1080
+    ORIGINAL_WIDTH: 1920
+    RESIZE_SCALE: 0.25

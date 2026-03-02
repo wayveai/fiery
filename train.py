@@ -1,48 +1,9 @@
-import os
-import time
-import socket
-import torch
-import pytorch_lightning as pl
-from pytorch_lightning.strategies import DDPStrategy
+from pathlib import Path
+import sys
 
-from fiery.config import get_parser, get_cfg
-from fiery.data import prepare_dataloaders
-from fiery.trainer import TrainingModule
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
-
-def main():
-    args = get_parser().parse_args()
-    cfg = get_cfg(args)
-
-    trainloader, valloader = prepare_dataloaders(cfg)
-    model = TrainingModule(cfg.convert_to_dict())
-
-    if cfg.PRETRAINED.LOAD_WEIGHTS:
-        # Load single-image instance segmentation model.
-        pretrained_model_weights = torch.load(
-            os.path.join(cfg.DATASET.DATAROOT, cfg.PRETRAINED.PATH), map_location='cpu', weights_only=False
-        )['state_dict']
-
-        model.load_state_dict(pretrained_model_weights, strict=False)
-        print(f'Loaded single-image model weights from {cfg.PRETRAINED.PATH}')
-
-    save_dir = os.path.join(
-        cfg.LOG_DIR, time.strftime('%d%B%Yat%H:%M:%S%Z') + '_' + socket.gethostname() + '_' + cfg.TAG
-    )
-    tb_logger = pl.loggers.TensorBoardLogger(save_dir=save_dir)
-    trainer = pl.Trainer(
-        devices=cfg.GPUS,
-        accelerator='gpu',
-        strategy=DDPStrategy(find_unused_parameters=True),
-        precision=cfg.PRECISION,
-        sync_batchnorm=True,
-        gradient_clip_val=cfg.GRAD_NORM_CLIP,
-        max_epochs=cfg.EPOCHS,
-        logger=tb_logger,
-        log_every_n_steps=cfg.LOGGING_INTERVAL,
-        profiler='simple',
-    )
-    trainer.fit(model, trainloader, valloader)
+from train import main
 
 
 if __name__ == "__main__":

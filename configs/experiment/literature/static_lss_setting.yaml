@@ -1,0 +1,7 @@
+defaults:
+  - /experiment: single_timeframe
+fiery:
+  TAG: 'lift_splat_setting'
+
+  DATASET:
+    FILTER_INVISIBLE_VEHICLES: False

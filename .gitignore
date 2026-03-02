@@ -1,6 +1,14 @@
+data/
+logs/
+outputs/
+multirun/
+.hydra/
+.env
 tensorboard_logs/
+lightning_logs/
 example_data/
 output_vis/
+wandb/
 .idea/
 *.pyc
 *.ipynb_checkpoints

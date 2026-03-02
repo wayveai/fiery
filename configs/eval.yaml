@@ -1,0 +1,11 @@
+defaults:
+  - data: nuscenes
+  - experiment: baseline
+  - model: fiery
+  - paths: default
+  - hydra: default
+  - _self_
+
+checkpoint_path: ${paths.root_dir}/fiery.ckpt
+
+device: cuda:0

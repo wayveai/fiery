@@ -1,0 +1,14 @@
+defaults:
+  - /experiment: baseline
+fiery:
+  TAG: 'debug'
+
+  EPOCHS: 2
+  BATCHSIZE: 1
+  GPUS: [0]
+  LOGGING_INTERVAL: 10
+
+  DATASET:
+    VERSION: 'mini'
+
+  VIS_INTERVAL: 8
