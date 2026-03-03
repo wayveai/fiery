@@ -1,6 +1,8 @@
+absl-py==2.4.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
 aiosignal==1.4.0
+antlr4-python3-runtime==4.9.3
 async-timeout==5.0.1
 attrs==25.4.0
 black==26.1.0
@@ -20,6 +22,7 @@ fonttools==4.61.1
 frozenlist==1.8.0
 fsspec==2026.2.0
 fvcore==0.1.5.post20221221
+grpcio==1.78.0
 hydra-core==1.3.2
 idna==3.4
 imageio==2.37.2
@@ -31,6 +34,7 @@ joblib==1.5.3
 kiwisolver==1.4.9
 lightning-utilities==0.11.8
 lyft-dataset-sdk==0.0.8
+markdown==3.10.2
 markupsafe==3.0.3
 matplotlib==3.5.3
 mccabe==0.7.0
@@ -57,6 +61,7 @@ nvidia-nccl-cu12==2.27.5
 nvidia-nvjitlink-cu12==12.8.93
 nvidia-nvshmem-cu12==3.4.5
 nvidia-nvtx-cu12==12.8.90
+omegaconf==2.3.0
 opencv-python==4.11.0.86
 packaging==24.1
 pandas==2.3.3
@@ -68,6 +73,7 @@ pluggy==1.6.0
 portalocker==2.10.1
 proglog==0.1.12
 propcache==0.4.1
+protobuf==7.34.0
 pycocotools==2.0.11
 pycodestyle==2.14.0
 pyflakes==3.4.0
@@ -88,15 +94,18 @@ shapely==1.8.5.post1
 six==1.17.0
 sympy==1.14.0
 tabulate==0.9.0
+tensorboard==2.20.0
+tensorboard-data-server==0.7.2
 termcolor==3.3.0
 threadpoolctl==3.6.0
 tomli==2.4.0
-torch==2.10.0+cu128
+torch==2.10.0
 torchmetrics==1.0.3
-torchvision==0.25.0+cu128
+torchvision==0.25.0
 tqdm==4.66.5
 triton==3.6.0
 typing-extensions==4.15.0
 tzdata==2025.3
+werkzeug==3.1.6
 yacs==0.1.8
 yarl==1.22.0

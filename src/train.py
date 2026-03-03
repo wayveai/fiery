@@ -17,6 +17,20 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "configs"
 
 
+def _compose_fiery_cfg_dict(cfg: DictConfig):
+    merged = OmegaConf.create({})
+
+    for section in ("data", "experiment", "model"):
+        section_cfg = cfg.get(section)
+        if section_cfg is not None and "fiery" in section_cfg:
+            merged = OmegaConf.merge(merged, section_cfg.fiery)
+
+    if cfg.get("fiery") is not None:
+        merged = OmegaConf.merge(merged, cfg.fiery)
+
+    return OmegaConf.to_container(merged, resolve=True)
+
+
 def _build_callbacks(callbacks_cfg):
     callbacks = []
     if callbacks_cfg is None:
@@ -39,8 +53,10 @@ def main(cfg: DictConfig):
     if cfg.get("seed") is not None:
         seed_everything(cfg.seed, deterministic=bool(cfg.get("deterministic", False)))
 
-    fiery_cfg_dict = OmegaConf.to_container(cfg.fiery, resolve=True)
+    fiery_cfg_dict = _compose_fiery_cfg_dict(cfg)
     fiery_cfg = get_cfg(cfg_dict=fiery_cfg_dict)
+    runtime_cfg = OmegaConf.create(OmegaConf.to_container(cfg, resolve=False))
+    runtime_cfg.fiery = OmegaConf.create(fiery_cfg.convert_to_dict())
 
     datamodule = FieryDataModule(fiery_cfg)
     model = TrainingModule(fiery_cfg.convert_to_dict())
@@ -54,11 +70,13 @@ def main(cfg: DictConfig):
         model.load_state_dict(pretrained_model_weights, strict=False)
         print(f"Loaded single-image model weights from {fiery_cfg.PRETRAINED.PATH}")
 
-    logger_cfg = OmegaConf.to_container(cfg.logger, resolve=True) if cfg.get("logger") is not None else None
+    logger_cfg = (
+        OmegaConf.to_container(runtime_cfg.logger, resolve=True) if runtime_cfg.get("logger") is not None else None
+    )
     logger = TensorBoardLogger(**logger_cfg) if logger_cfg is not None else None
 
-    callbacks = _build_callbacks(cfg.get("callbacks"))
-    trainer_kwargs = OmegaConf.to_container(cfg.trainer, resolve=True)
+    callbacks = _build_callbacks(runtime_cfg.get("callbacks"))
+    trainer_kwargs = OmegaConf.to_container(runtime_cfg.trainer, resolve=True)
 
     trainer = pl.Trainer(**trainer_kwargs, logger=logger, callbacks=callbacks)
     trainer.fit(model, datamodule=datamodule)

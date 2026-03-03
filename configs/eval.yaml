@@ -9,3 +9,9 @@ defaults:
 checkpoint_path: ${paths.root_dir}/fiery.ckpt
 
 device: cuda:0
+
+fiery:
+  DATASET:
+    NAME: nuscenes
+    DATAROOT: ${paths.data_dir}/nuscenes
+    VERSION: trainval

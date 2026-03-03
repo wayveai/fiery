@@ -20,6 +20,20 @@ EVALUATION_RANGES = {
 }
 
 
+def _compose_fiery_cfg_dict(cfg: DictConfig):
+    merged = OmegaConf.create({})
+
+    for section in ("data", "experiment", "model"):
+        section_cfg = cfg.get(section)
+        if section_cfg is not None and "fiery" in section_cfg:
+            merged = OmegaConf.merge(merged, section_cfg.fiery)
+
+    if cfg.get("fiery") is not None:
+        merged = OmegaConf.merge(merged, cfg.fiery)
+
+    return OmegaConf.to_container(merged, resolve=True)
+
+
 def evaluate(checkpoint_path, dataroot, version, device="cuda:0"):
     trainer = TrainingModule.load_from_checkpoint(checkpoint_path, strict=True, weights_only=False)
     print(f"Loaded weights from \n {checkpoint_path}")
@@ -96,7 +110,7 @@ def evaluate(checkpoint_path, dataroot, version, device="cuda:0"):
 def main(cfg: DictConfig):
     load_dotenv()
 
-    fiery_cfg_dict = OmegaConf.to_container(cfg.fiery, resolve=True)
+    fiery_cfg_dict = _compose_fiery_cfg_dict(cfg)
     fiery_cfg = get_cfg(cfg_dict=fiery_cfg_dict)
 
     evaluate(
