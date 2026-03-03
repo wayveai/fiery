@@ -1,0 +1,9 @@
+accelerator: gpu
+devices: ${fiery.GPUS}
+precision: ${fiery.PRECISION}
+max_epochs: ${fiery.EPOCHS}
+gradient_clip_val: ${fiery.GRAD_NORM_CLIP}
+log_every_n_steps: ${fiery.LOGGING_INTERVAL}
+sync_batchnorm: true
+strategy: ddp_find_unused_parameters_true
+profiler: simple

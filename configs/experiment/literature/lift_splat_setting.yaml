@@ -1,0 +1,7 @@
+defaults:
+  - /experiment: temporal_single_timeframe
+fiery:
+  TAG: 'temporal_lift_splat_setting'
+
+  DATASET:
+    FILTER_INVISIBLE_VEHICLES: False

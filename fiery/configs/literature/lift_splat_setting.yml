@@ -1,6 +1,0 @@
-_BASE_: '../temporal_single_timeframe.yml'
-
-TAG: 'temporal_lift_splat_setting'
-
-DATASET:
-  FILTER_INVISIBLE_VEHICLES: False

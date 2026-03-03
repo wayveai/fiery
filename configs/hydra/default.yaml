@@ -1,0 +1,5 @@
+run:
+  dir: ${paths.log_dir}/runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+sweep:
+  dir: ${paths.log_dir}/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  subdir: ${hydra.job.num}

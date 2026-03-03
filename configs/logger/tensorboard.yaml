@@ -1,0 +1,2 @@
+save_dir: ${paths.output_dir}
+name: ${fiery.TAG}

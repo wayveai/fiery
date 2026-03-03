@@ -1,0 +1,14 @@
+defaults:
+  - /experiment: baseline
+fiery:
+  TAG: 'fishing_setting'
+
+  BATCHSIZE: 3
+
+  DATASET:
+    FILTER_INVISIBLE_VEHICLES: False
+
+  LIFT:
+    D_BOUND: [2.0, 16.0, 0.5]
+    X_BOUND: [-16.0, 16.0, 0.1]
+    Y_BOUND: [-9.6, 9.7, 0.1]

@@ -25,3 +25,5 @@ nuscenes
 keyframe blobs only part 1-10, instead of all the file blobs part 1-10. The keyframe blobs contain the data we 
 need (RGB images and 3D bounding box of dynamic objects at 2Hz). The remaining file blobs also include RGB 
 images and LiDAR sweeps at a higher frequency, but they are not used during training. 
+
+- By default the code expects the dataset at `data/nuscenes`. Override with `paths.data_dir` (parent dir that contains `nuscenes/`) or `fiery.DATASET.DATAROOT` when running.
