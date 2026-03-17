@@ -28,7 +28,13 @@ def _compose_fiery_cfg_dict(cfg: DictConfig):
     if cfg.get("fiery") is not None:
         merged = OmegaConf.merge(merged, cfg.fiery)
 
-    return OmegaConf.to_container(merged, resolve=True)
+    # Resolve paths in the full Hydra context (where hydra:* resolvers are active),
+    # then use it as a resolution context for ${paths.*} interpolations in the
+    # fiery config. This avoids resolving the full cfg (which has forward references
+    # like trainer.devices = ${fiery.GPUS} that don't exist yet).
+    paths_resolved = OmegaConf.to_container(cfg.paths, resolve=True)
+    resolvable = OmegaConf.create({"paths": paths_resolved, "fiery": merged})
+    return OmegaConf.to_container(resolvable.fiery, resolve=True)
 
 
 def _build_callbacks(callbacks_cfg):

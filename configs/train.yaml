@@ -11,9 +11,3 @@ defaults:
 
 seed: 42
 deterministic: false
-
-fiery:
-  DATASET:
-    NAME: nuscenes
-    DATAROOT: ${paths.data_dir}/nuscenes
-    VERSION: trainval
