@@ -120,6 +120,70 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         self._anns_flat = np.array(all_anns, dtype='<U64') if all_anns else np.empty(0, dtype='<U64')
         self._anns_offsets = anns_offsets
 
+        # Pre-cache all NuScenes lookup data into plain numpy/dict structures
+        # so we can release self.nusc and avoid duplicating it in DataLoader workers.
+        self._cache_nusc_lookups()
+        self.nusc = None
+
+    def _cache_nusc_lookups(self):
+        """Extract all data needed by __getitem__ from self.nusc into numpy-friendly caches."""
+        # Collect all sample_data tokens referenced by this split
+        all_sd_tokens = set()
+        for i in range(len(self._tokens)):
+            for j in range(self._data_tokens.shape[1]):
+                tok = str(self._data_tokens[i, j])
+                if tok:
+                    all_sd_tokens.add(tok)
+        # Also need next-frame sample_data for future_egomotion lookups
+        # (index_t + 1 may reference tokens already in _data_tokens)
+
+        # Cache sample_data: token -> {ego_pose_token, calibrated_sensor_token, filename}
+        self._sd_cache = {}
+        for tok in all_sd_tokens:
+            rec = self.nusc.get('sample_data', tok)
+            self._sd_cache[tok] = {
+                'ego_pose_token': rec['ego_pose_token'],
+                'calibrated_sensor_token': rec['calibrated_sensor_token'],
+                'filename': rec['filename'],
+            }
+
+        # Cache ego_pose: token -> {translation (3,), rotation (4,)}
+        ego_tokens = set(v['ego_pose_token'] for v in self._sd_cache.values())
+        self._ego_cache = {}
+        for tok in ego_tokens:
+            rec = self.nusc.get('ego_pose', tok)
+            self._ego_cache[tok] = {
+                'translation': np.array(rec['translation'], dtype=np.float64),
+                'rotation': np.array(rec['rotation'], dtype=np.float64),
+            }
+
+        # Cache calibrated_sensor: token -> {translation (3,), rotation (4,), camera_intrinsic (3,3)}
+        cs_tokens = set(v['calibrated_sensor_token'] for v in self._sd_cache.values())
+        self._cs_cache = {}
+        for tok in cs_tokens:
+            rec = self.nusc.get('calibrated_sensor', tok)
+            self._cs_cache[tok] = {
+                'translation': np.array(rec['translation'], dtype=np.float64),
+                'rotation': np.array(rec['rotation'], dtype=np.float64),
+                'camera_intrinsic': np.array(rec['camera_intrinsic'], dtype=np.float64) if rec['camera_intrinsic'] else np.zeros((3, 3), dtype=np.float64),
+            }
+
+        # Cache sample_annotation: token -> {category_name, visibility_token, instance_token, translation, size, rotation}
+        self._ann_cache = {}
+        for ann_tok in self._anns_flat:
+            ann_tok_str = str(ann_tok)
+            if ann_tok_str in self._ann_cache:
+                continue
+            rec = self.nusc.get('sample_annotation', ann_tok_str)
+            self._ann_cache[ann_tok_str] = {
+                'category_name': rec['category_name'],
+                'visibility_token': rec['visibility_token'],
+                'instance_token': rec['instance_token'],
+                'translation': rec['translation'],
+                'size': rec['size'],
+                'rotation': rec['rotation'],
+            }
+
     def get_indices(self):
         indices = []
         n_samples = len(self._scene_tokens)
@@ -195,8 +259,8 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
         # From lidar egopose to world.
         lidar_token = str(self._data_tokens[index_t, self._sensor_col['LIDAR_TOP']])
-        lidar_sample = self.nusc.get('sample_data', lidar_token)
-        lidar_pose = self.nusc.get('ego_pose', lidar_sample['ego_pose_token'])
+        lidar_sample = self._sd_cache[lidar_token]
+        lidar_pose = self._ego_cache[lidar_sample['ego_pose_token']]
         yaw = Quaternion(lidar_pose['rotation']).yaw_pitch_roll[0]
         lidar_rotation = Quaternion(scalar=np.cos(yaw / 2), vector=[0, 0, np.sin(yaw / 2)])
         lidar_translation = np.array(lidar_pose['translation'])[:, None]
@@ -206,10 +270,10 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         ])
 
         for cam in cameras:
-            camera_sample = self.nusc.get('sample_data', str(self._data_tokens[index_t, self._sensor_col[cam]]))
+            camera_sample = self._sd_cache[str(self._data_tokens[index_t, self._sensor_col[cam]])]
 
             # Transformation from world to egopose
-            car_egopose = self.nusc.get('ego_pose', camera_sample['ego_pose_token'])
+            car_egopose = self._ego_cache[camera_sample['ego_pose_token']]
             egopose_rotation = Quaternion(car_egopose['rotation']).inverse
             egopose_translation = -np.array(car_egopose['translation'])[:, None]
             world_to_car_egopose = np.vstack([
@@ -218,7 +282,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
             ])
 
             # From egopose to sensor
-            sensor_sample = self.nusc.get('calibrated_sensor', camera_sample['calibrated_sensor_token'])
+            sensor_sample = self._cs_cache[camera_sample['calibrated_sensor_token']]
             intrinsic = torch.Tensor(sensor_sample['camera_intrinsic'])
             sensor_rotation = Quaternion(sensor_sample['rotation'])
             sensor_translation = np.array(sensor_sample['translation'])[:, None]
@@ -265,7 +329,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
 
     def _get_top_lidar_pose(self, index_t):
         lidar_token = str(self._data_tokens[index_t, self._sensor_col['LIDAR_TOP']])
-        egopose = self.nusc.get('ego_pose', self.nusc.get('sample_data', lidar_token)['ego_pose_token'])
+        egopose = self._ego_cache[self._sd_cache[lidar_token]['ego_pose_token']]
         trans = -np.array(egopose['translation'])
         yaw = Quaternion(egopose['rotation']).yaw_pitch_roll[0]
         rot = Quaternion(scalar=np.cos(yaw / 2), vector=[0, 0, np.sin(yaw / 2)]).inverse
@@ -283,7 +347,7 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         ann_end = self._anns_offsets[index_t + 1]
         for annotation_token in self._anns_flat[ann_start:ann_end]:
             # Filter out all non vehicle instances
-            annotation = self.nusc.get('sample_annotation', str(annotation_token))
+            annotation = self._ann_cache[str(annotation_token)]
 
             if not self.is_lyft:
                 # NuScenes filter
@@ -344,12 +408,12 @@ class FuturePredictionDataset(torch.utils.data.Dataset):
         if index_t < len(self._scene_tokens) - 1:
             if self._scene_tokens[index_t] == self._scene_tokens[index_t + 1]:
                 lidar_col = self._sensor_col['LIDAR_TOP']
-                egopose_t0 = self.nusc.get(
-                    'ego_pose', self.nusc.get('sample_data', str(self._data_tokens[index_t, lidar_col]))['ego_pose_token']
-                )
-                egopose_t1 = self.nusc.get(
-                    'ego_pose', self.nusc.get('sample_data', str(self._data_tokens[index_t + 1, lidar_col]))['ego_pose_token']
-                )
+                egopose_t0 = self._ego_cache[
+                    self._sd_cache[str(self._data_tokens[index_t, lidar_col])]['ego_pose_token']
+                ]
+                egopose_t1 = self._ego_cache[
+                    self._sd_cache[str(self._data_tokens[index_t + 1, lidar_col])]['ego_pose_token']
+                ]
 
                 egopose_t0 = convert_egopose_to_matrix_numpy(egopose_t0)
                 egopose_t1 = convert_egopose_to_matrix_numpy(egopose_t1)
@@ -474,10 +538,13 @@ def prepare_dataloaders(cfg, return_dataset=False):
 
     nworkers = cfg.N_WORKERS
     trainloader = torch.utils.data.DataLoader(
-        traindata, batch_size=cfg.BATCHSIZE, shuffle=True, num_workers=nworkers, pin_memory=True, drop_last=True
+        traindata, batch_size=cfg.BATCHSIZE, shuffle=True, num_workers=nworkers, pin_memory=True, drop_last=True,
+        persistent_workers=(nworkers > 0), prefetch_factor=2 if nworkers > 0 else None,
     )
     valloader = torch.utils.data.DataLoader(
-        valdata, batch_size=cfg.BATCHSIZE, shuffle=False, num_workers=nworkers, pin_memory=True, drop_last=False)
+        valdata, batch_size=cfg.BATCHSIZE, shuffle=False, num_workers=nworkers, pin_memory=True, drop_last=False,
+        persistent_workers=(nworkers > 0), prefetch_factor=2 if nworkers > 0 else None,
+    )
 
     if return_dataset:
         return trainloader, valloader, traindata, valdata
