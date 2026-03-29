@@ -99,11 +99,11 @@ tensorboard-data-server==0.7.2
 termcolor==3.3.0
 threadpoolctl==3.6.0
 tomli==2.4.0
-torch==2.10.0
-torchmetrics==1.0.3
-torchvision==0.25.0
+torch
+torchmetrics
+torchvision
 tqdm==4.66.5
-triton==3.6.0
+triton
 typing-extensions==4.15.0
 tzdata==2025.3
 werkzeug==3.1.6

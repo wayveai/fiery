@@ -11,3 +11,6 @@ defaults:
 
 seed: 42
 deterministic: false
+
+fiery:
+  BATCHSIZE: ${experiment.fiery.BATCHSIZE}

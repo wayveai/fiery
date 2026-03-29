@@ -22,4 +22,4 @@ fiery:
   OPTIMIZER:
     LR: 1e-3
   
-  N_WORKERS: 10
+  N_WORKERS: 0
