@@ -22,7 +22,7 @@ class SpatialRegressionLoss(nn.Module):
         # ignore_index is the same across all channels
         mask = target[:, :, :1] != self.ignore_index
         if mask.sum() == 0:
-            return prediction.new_zeros(1)[0].float()
+            return prediction.sum() * 0.0
 
         loss = self.loss_fn(prediction, target, reduction='none')
 
@@ -53,6 +53,9 @@ class SegmentationLoss(nn.Module):
 
         prediction = prediction.view(b * s, c, h, w)
         target = target.view(b * s, h, w)
+        valid = target != self.ignore_index
+        if not valid.any():
+            return prediction.sum() * 0.0
         loss = F.cross_entropy(
             prediction,
             target,
@@ -68,13 +71,15 @@ class SegmentationLoss(nn.Module):
         loss = loss * future_discounts
 
         loss = loss.view(b, s, -1)
+        valid = valid.view(b, s, -1)
         if self.use_top_k:
             # Penalises the top-k hardest pixels
-            k = int(self.top_k_ratio * loss.shape[2])
-            loss, _ = torch.sort(loss, dim=2, descending=True)
+            k = max(1, int(self.top_k_ratio * loss.shape[2]))
+            loss, indices = torch.sort(loss.masked_fill(~valid, -float('inf')), dim=2, descending=True)
+            valid = valid.gather(2, indices)[:, :, :k]
             loss = loss[:, :, :k]
 
-        return torch.mean(loss)
+        return loss[valid].mean()
 
 
 class ProbabilisticLoss(nn.Module):
