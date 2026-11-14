@@ -24,10 +24,13 @@ def convert_instance_mask_to_center_and_offset_label(instance_img, future_egomot
     # Compute warped instance segmentation
     warped_instance_seg = {}
     for t in range(1, seq_len):
-        warped_inst_t = warp_features(instance_img[t].unsqueeze(0).unsqueeze(1).float(),
-                                      future_egomotion_inv[t - 1].unsqueeze(0), mode='nearest',
-                                      spatial_extent=spatial_extent)
-        warped_instance_seg[t] = warped_inst_t[0, 0]
+        if subtract_egomotion:
+            warped_inst_t = warp_features(instance_img[t].unsqueeze(0).unsqueeze(1).float(),
+                                          future_egomotion_inv[t - 1].unsqueeze(0), mode='nearest',
+                                          spatial_extent=spatial_extent)
+            warped_instance_seg[t] = warped_inst_t[0, 0]
+        else:
+            warped_instance_seg[t] = instance_img[t]
 
     # Ignore id 0 which is the background
     for instance_id in range(1, num_instances+1):
@@ -165,7 +168,10 @@ def update_instance_ids(instance_seg, old_ids, new_ids):
 def make_instance_seg_consecutive(instance_seg):
     # Make the indices of instance_seg consecutive
     unique_ids = torch.unique(instance_seg)
-    new_ids = torch.arange(len(unique_ids), device=instance_seg.device)
+    unique_ids = unique_ids[unique_ids != 0]
+    if len(unique_ids) == 0:
+        return instance_seg.clone().long()
+    new_ids = torch.arange(1, len(unique_ids) + 1, device=instance_seg.device)
     instance_seg = update_instance_ids(instance_seg, unique_ids, new_ids)
     return instance_seg
 
@@ -206,11 +212,20 @@ def make_instance_id_temporally_consistent(pred_inst, future_flow, matching_thre
         grid = grid + future_flow[0, t]
         warped_centers = []
         # Go through all ids, except the background
-        t_instance_ids = torch.unique(consistent_instance_seg[-1])[1:].cpu().numpy()
+        t_instance_ids = torch.unique(consistent_instance_seg[-1])
+        t_instance_ids = t_instance_ids[t_instance_ids != 0].cpu().numpy()
+        next_instance_ids = torch.unique(pred_inst[0, t + 1])
+        next_instance_ids = next_instance_ids[next_instance_ids != 0].cpu().numpy()
 
         if len(t_instance_ids) == 0:
-            # No instance so nothing to update
-            consistent_instance_seg.append(pred_inst[0, t + 1])
+            # Objects entering after an empty frame must start new tracks.
+            if len(next_instance_ids):
+                new_ids = np.arange(largest_instance_id + 1,
+                                    largest_instance_id + len(next_instance_ids) + 1)
+                largest_instance_id = int(new_ids[-1])
+                consistent_instance_seg.append(update_instance_ids(pred_inst[0, t + 1], next_instance_ids, new_ids))
+            else:
+                consistent_instance_seg.append(pred_inst[0, t + 1])
             continue
 
         for instance_id in t_instance_ids:
@@ -223,14 +238,14 @@ def make_instance_id_temporally_consistent(pred_inst, future_flow, matching_thre
         grid = torch.stack(torch.meshgrid(
             torch.arange(h, dtype=torch.float, device=device), torch.arange(w, dtype=torch.float, device=device)
         ))
-        n_instances = int(pred_inst[0, t + 1].max().item())
+        n_instances = len(next_instance_ids)
 
         if n_instances == 0:
             # No instance, so nothing to update.
             consistent_instance_seg.append(pred_inst[0, t + 1])
             continue
 
-        for instance_id in range(1, n_instances + 1):
+        for instance_id in next_instance_ids:
             instance_mask = (pred_inst[0, t + 1] == instance_id)
             centers.append(grid[:, instance_mask].mean(dim=1))
         centers = torch.stack(centers)
@@ -241,22 +256,16 @@ def make_instance_id_temporally_consistent(pred_inst, future_flow, matching_thre
         # the missing ids in col must be added (correspond to new instances)
         ids_t, ids_t_one = linear_sum_assignment(distances)
         matching_distances = distances[ids_t, ids_t_one]
-        # Offset by one as id=0 is the background
-        ids_t += 1
-        ids_t_one += 1
-
-        # swap ids_t with real ids. as those ids correspond to the position in the distance matrix.
-        id_mapping = dict(zip(np.arange(1, len(t_instance_ids) + 1), t_instance_ids))
-        ids_t = np.vectorize(id_mapping.__getitem__, otypes=[np.int64])(ids_t)
+        # Assignment indices refer to rows of the center arrays, not instance IDs.
+        ids_t = t_instance_ids[ids_t]
+        ids_t_one = next_instance_ids[ids_t_one]
 
         # Filter low quality match
         ids_t = ids_t[matching_distances < matching_threshold]
         ids_t_one = ids_t_one[matching_distances < matching_threshold]
 
         # Elements that are in t+1, but weren't matched
-        remaining_ids = set(torch.unique(pred_inst[0, t + 1]).cpu().numpy()).difference(set(ids_t_one))
-        # remove background
-        remaining_ids.remove(0)
+        remaining_ids = set(next_instance_ids).difference(set(ids_t_one))
         #  Set remaining_ids to a new unique id
         for remaining_id in list(remaining_ids):
             largest_instance_id += 1
@@ -315,7 +324,8 @@ def predict_instance_segmentation_and_trajectories(
             torch.arange(w, dtype=torch.float, device=preds.device)
         ))
 
-        for instance_id in torch.unique(consistent_instance_seg[0, 0])[1:].cpu().numpy():
+        initial_instance_ids = torch.unique(consistent_instance_seg[0, 0])
+        for instance_id in initial_instance_ids[initial_instance_ids != 0].cpu().numpy():
             for t in range(seq_len):
                 instance_mask = consistent_instance_seg[0, t] == instance_id
                 if instance_mask.sum() > 0:
