@@ -210,12 +210,11 @@ def warp_features(x, flow, mode='nearest', spatial_extent=None):
     # translation_pos_0 -> positive value makes the image move to the left
     # translation_pos_1 -> positive value makes the image move to the top
     # Angle -> positive value in rad makes the image move in the trigonometric way
-    transformation = torch.stack([cos_theta, -sin_theta, translation[:, 1],
-                                  sin_theta, cos_theta, translation[:, 0]], dim=-1).view(b, 2, 3)
-
-    # Note that a rotation will preserve distances only if height = width. Otherwise there's
-    # resizing going on. e.g. rotation of pi/2 of a 100x200 image will make what's in the center of the image
-    # elongated.
+    # Grid coordinates are normalized independently along each axis. Convert the
+    # rotation between metric coordinates and this normalized coordinate system.
+    transformation = torch.stack([cos_theta, -sin_theta * spatial_extent[0] / spatial_extent[1], translation[:, 1],
+                                  sin_theta * spatial_extent[1] / spatial_extent[0], cos_theta, translation[:, 0]],
+                                 dim=-1).view(b, 2, 3)
     grid = torch.nn.functional.affine_grid(transformation, size=x.shape, align_corners=False)
     warped_x = torch.nn.functional.grid_sample(x, grid.float(), mode=mode, padding_mode='zeros', align_corners=False)
 
