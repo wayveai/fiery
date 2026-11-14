@@ -234,7 +234,7 @@ class Fiery(nn.Module):
 
             # Convert positions to integer indices
             geometry_b = ((geometry[b] - (self.bev_start_position - self.bev_resolution / 2.0)) / self.bev_resolution)
-            geometry_b = geometry_b.view(N, 3).long()
+            geometry_b = geometry_b.view(N, 3).floor().long()
 
             # Mask out points that are outside the considered spatial extent.
             mask = (
